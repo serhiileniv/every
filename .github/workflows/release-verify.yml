@@ -1,0 +1,80 @@
+# Verifies a PUBLISHED release, not the working tree.
+#
+# The `test` workflow installs from the checkout, which proves the code in the
+# branch works. It does not prove that what users actually download works: the
+# release tarball, the version resolution in install.sh / install.ps1, and the
+# installed layout are all untested by it. 0.3.0 shipped a Windows backend that
+# could not register a single task, so "green CI" and "a working release" are
+# demonstrably not the same thing.
+#
+# Run from the Actions tab (or `gh workflow run release-verify.yml -f tag=vX.Y.Z`)
+# after publishing. Defaults to the latest release.
+name: release-verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to verify (e.g. v0.3.1). Blank = latest.'
+        required: false
+        default: ''
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the published release
+        run: |
+          set -eux
+          if [ -n "${{ inputs.tag }}" ]; then
+            sh install.sh --prefix "$RUNNER_TEMP/every" --version "${{ inputs.tag }}"
+          else
+            cat install.sh | sh -s -- --prefix "$RUNNER_TEMP/every"
+          fi
+          "$RUNNER_TEMP/every/bin/every" version
+      # Drive the INSTALLED tree, not the checkout.
+      - name: End-to-end against the installed release (real launchd)
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/lib/every" "$RUNNER_TEMP/every-home"
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the published release
+        run: |
+          set -eux
+          if [ -n "${{ inputs.tag }}" ]; then
+            sh install.sh --prefix "$RUNNER_TEMP/every" --version "${{ inputs.tag }}"
+          else
+            cat install.sh | sh -s -- --prefix "$RUNNER_TEMP/every"
+          fi
+          "$RUNNER_TEMP/every/bin/every" version
+      - name: Enable a systemd user session
+        run: |
+          sudo loginctl enable-linger "$USER" || true
+          systemctl --user show-environment || echo "no user bus — lifecycle will skip"
+      - name: End-to-end against the installed release (real systemd)
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/lib/every" "$RUNNER_TEMP/every-home"
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      # The download path, which the `test` workflow never exercises: it
+      # installs from the checkout, so release resolution and the published
+      # tarball go unverified on the one platform that most needed checking.
+      - name: Install the published release
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:RUNNER_TEMP "every"
+          if ("${{ inputs.tag }}") { .\install.ps1 -Prefix $prefix -Version "${{ inputs.tag }}" }
+          else { .\install.ps1 -Prefix $prefix }
+          & (Join-Path $prefix "bin\every.cmd") version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: End-to-end against the installed release (real Task Scheduler)
+        shell: pwsh
+        run: pwsh -File test/e2e/windows.ps1 -Prefix "$env:RUNNER_TEMP\every"
