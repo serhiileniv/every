@@ -84,11 +84,50 @@ class WindowsTaskSchedulerTest < Minitest::Test
         begin
           assert_equal ["cmd.exe", "/d", "/s", "/c"], argv[0, 4]
           assert_match(/\.cmd\z/, argv.last)
-          assert_equal "echo \"my file.txt\"\r\n", File.binread(argv.last)
+          assert_equal "@echo off\r\necho \"my file.txt\"\r\n", File.binread(argv.last)
         ensure
           cleanup.call
         end
         refute File.exist?(argv.last)
+      end
+    end
+  end
+
+  # Regression guard. Written as an interpolating heredoc, the '\every\' path
+  # literal this script used to carry collapsed to an ESC byte, so the query
+  # matched nothing and every loaded_names call raised on real Windows. No CI
+  # job could see it, because none of them run PowerShell against the service.
+  def test_task_state_script_has_no_stray_control_characters
+    script = WS.task_state_script
+    assert_includes script, "Get-ScheduledTask"
+    refute_match(/[^\P{Cc}\n]/, script,
+                 "PowerShell script picked up a control byte from Ruby escaping")
+  end
+
+  def test_delete_units_tolerates_an_already_absent_task
+    failed = [+"ERROR: The system cannot find the file specified.", Struct.new(:success?).new(false)]
+    WS.stub(:schtasks, failed) do
+      WS.stub(:loaded?, false) do
+        assert WS.delete_units("gone"), "rm must still clear a task the service no longer has"
+      end
+    end
+  end
+
+  def test_delete_units_raises_when_the_task_survives_the_delete
+    failed = [+"ERROR: Access is denied.", Struct.new(:success?).new(false)]
+    WS.stub(:schtasks, failed) do
+      WS.stub(:loaded?, true) do
+        error = assert_raises(RuntimeError) { WS.delete_units("stubborn") }
+        assert_match(/Access is denied/, error.message)
+      end
+    end
+  end
+
+  def test_disable_tolerates_an_already_absent_task
+    failed = [+"ERROR: The system cannot find the file specified.", Struct.new(:success?).new(false)]
+    WS.stub(:schtasks, failed) do
+      WS.stub(:loaded?, false) do
+        assert WS.disable("gone")
       end
     end
   end

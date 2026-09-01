@@ -183,8 +183,9 @@ module Every
       suffix = powershell ? ".ps1" : ".cmd"
       temp = Tempfile.new(["every-command", suffix])
       temp.binmode
-      content = "#{cmd}\r\n"
-      content = "\uFEFF#{content}" if powershell
+      # @echo off: a batch file runs with ECHO ON, so without it cmd copies
+      # every line of the command into stdout and it lands in `every log`.
+      content = powershell ? "\uFEFF#{cmd}\r\n" : "@echo off\r\n#{cmd}\r\n"
       temp.write(content.encode(Encoding::UTF_8))
       temp.close
       argv = if powershell
