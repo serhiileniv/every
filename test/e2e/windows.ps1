@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Every = Join-Path $Prefix "bin\every.cmd"
+$EveryCmd = Join-Path $Prefix "bin\every.cmd"
 $script:pass = 0
 $script:fail = 0
 $TaskPath = "\every\"
@@ -25,21 +25,39 @@ function Bad($m, $d) {
   $script:fail++
 }
 function Sec($m) { Write-Host ""; Write-Host "-- $m --" -ForegroundColor Cyan }
+
+# Collapse whitespace and clip, so a failure prints one readable line.
+function Trunc($text) {
+  $s = ($text | Out-String) -replace '\s+', ' '
+  if ($s.Length -gt 220) { return $s.Substring(0, 220) }
+  return $s
+}
 function Same($m, $want, $got) {
   if ("$want" -eq "$got") { Ok $m } else { Bad $m "expected [$want] got [$got]" }
 }
 function Has($m, $hay, $needle) {
   if ("$hay" -like "*$needle*") { Ok $m }
-  else { Bad $m "missing [$needle] in: $((""+$hay) -replace '\s+',' ' | ForEach-Object { $_.Substring(0, [Math]::Min(220, $_.Length)) })" }
+  else { Bad $m ("missing [" + $needle + "] in: " + (Trunc $hay)) }
 }
 function Hasnt($m, $hay, $needle) {
-  if ("$hay" -like "*$needle*") { Bad $m "unexpectedly found [$needle]" } else { Ok $m }
+  if ("$hay" -like "*$needle*") { Bad $m ("unexpectedly found [" + $needle + "] in: " + (Trunc $hay)) }
+  else { Ok $m }
 }
 
-# Run `every` and capture merged output + exit code.
+# Run `every` and capture merged output + exit code. ErrorActionPreference is
+# relaxed for the call: with it set to Stop, a native command writing to stderr
+# can raise a terminating error, which would abort the suite instead of letting
+# an assertion record the failure.
 function Every() {
-  $out = & $Every @args 2>&1 | Out-String
-  return [pscustomobject]@{ Out = $out; Code = $LASTEXITCODE }
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $out = & $EveryCmd @args 2>&1 | Out-String
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  return [pscustomobject]@{ Out = $out; Code = $code }
 }
 
 function EveryTaskNames() {
@@ -175,8 +193,9 @@ catch { Bad "list --json parses" $_.Exception.Message; $parsed = $null }
 if ($parsed) {
   $probe = @($parsed) | Where-Object { $_.name -eq "probe" }
   if ($probe) { Ok "json contains the probe task" } else { Bad "json probe" "not present" }
+  $first = @($parsed)[0]
   foreach ($k in @("name","schedule","command","status")) {
-    if ($parsed[0].PSObject.Properties.Name -contains $k) { Ok "json has '$k'" }
+    if ($first.PSObject.Properties.Name -contains $k) { Ok "json has '$k'" }
     else { Bad "json field '$k'" "absent" }
   }
 }
