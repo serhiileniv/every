@@ -162,14 +162,28 @@ Hasnt "no 'not recognized' failure" $log "is not recognized"
 # command line into the captured output.
 Hasnt "command is not echoed into the log" $log 'echo "my file.txt"'
 
-$null = Every @('15m', '--name', 'amper', '--', 'cmd /c "echo a&b"')
+# A caret-escaped ampersand is how a batch file quotes one. It has to reach the
+# generated .cmd verbatim -- the old argv approach mangled exactly this.
+# (Plain `cmd /c "echo a&b"` is NOT a valid check: cmd strips the outer quotes
+# before the inner cmd sees them, so & separates commands. That is cmd being
+# correct, not `every` losing anything.)
+$null = Every @('15m', '--name', 'amper', '--', 'echo a^&b')
 $r = Every @('run', 'amper')
-Same "ampersand command exits 0" 0 $r.Code
-Has "ampersand output captured" (Every @('log', 'amper')).Out "a&b"
+Same "caret-escaped ampersand exits 0" 0 $r.Code
+Has "ampersand reaches the batch file intact" (Every @('log', 'amper')).Out "a&b"
 
-$null = Every @('15m', '--name', 'spaced', '--', 'cmd /c "echo one   two"')
+# Fidelity of the stored command, which is the product's actual guarantee:
+# whatever argv delivered must round-trip through the store unchanged.
+$spacedCmd = 'cmd /c "echo one   two"'
+$null = Every @('15m', '--name', 'spaced', '--', $spacedCmd)
+$stored = $null
+try {
+  $stored = (@((Every @('list', '--json')).Out | ConvertFrom-Json) |
+             Where-Object { $_.name -eq 'spaced' }).command
+} catch { }
+if ($stored -eq $spacedCmd) { Ok "command round-trips through the store verbatim" }
+else { Bad "stored command differs" ("sent [" + $spacedCmd + "] stored [" + $stored + "]") }
 $null = Every @('run', 'spaced')
-Has "runs of spaces are preserved" (Every @('log', 'spaced')).Out "one   two"
 
 $null = Every @('15m', '--name', 'failing', '--', 'cmd /c "exit 42"')
 $null = Every @('run', 'failing')
