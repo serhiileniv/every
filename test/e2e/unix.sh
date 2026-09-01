@@ -29,6 +29,21 @@ same() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected [$2] got [$3]
 has()  { case "$2" in *"$3"*) ok "$1";; *) bad "$1" "missing [$3] in: $(printf '%s' "$2" | tr '\n' ' ' | cut -c1-220)";; esac; }
 hasnt(){ case "$2" in *"$3"*) bad "$1" "unexpectedly found [$3]";; *) ok "$1";; esac; }
 
+# launchctl bootstrap and systemctl return before the job is necessarily
+# listable, so a single query right after `add` can miss it. That is the service
+# catching up, not `every` failing -- poll briefly instead of asserting on the
+# first look. (This is what made one visibility assertion fail about once in
+# a dozen local runs.)
+wait_until() { # wait_until <tries> <shell snippet>
+  _i=0
+  while [ "$_i" -lt "$1" ]; do
+    if eval "$2" >/dev/null 2>&1; then return 0; fi
+    sleep 1
+    _i=$((_i + 1))
+  done
+  return 1
+}
+
 OS=$(uname -s)
 case "$OS" in
   Darwin) BACKEND="launchd"; AGENTS="$HOME/Library/LaunchAgents" ;;
@@ -170,14 +185,14 @@ else
     launchd)
       unit=$(ls "$AGENTS" 2>/dev/null | grep -i "$PROBE" | head -1)
       if [ -n "$unit" ]; then ok "plist written ($unit)"; else bad "plist" "none in $AGENTS"; fi
-      if launchctl list 2>/dev/null | grep -qi "$PROBE"
-      then ok "loaded into launchctl"; else bad "launchctl" "label absent from launchctl list"; fi
+      if wait_until 10 "launchctl list 2>/dev/null | grep -qi $PROBE"
+      then ok "loaded into launchctl"; else bad "launchctl" "label absent after 10s"; fi
       ;;
     systemd)
       if [ -f "$AGENTS/every-$PROBE.timer" ] || ls "$AGENTS" 2>/dev/null | grep -qi "$PROBE"
       then ok "timer unit written"; else bad "unit" "nothing matching $PROBE in $AGENTS"; fi
-      if systemctl --user list-timers --all 2>/dev/null | grep -qi "$PROBE"
-      then ok "timer known to systemd"; else bad "systemd" "timer not listed"; fi
+      if wait_until 10 "systemctl --user list-timers --all 2>/dev/null | grep -qi $PROBE"
+      then ok "timer known to systemd"; else bad "systemd" "timer not listed after 10s"; fi
       ;;
   esac
 
@@ -192,16 +207,15 @@ else
   hasnt "resume clears paused" "$("$EVERY" list 2>&1)" "paused"
 
   "$EVERY" rm "$PROBE" >/dev/null 2>&1; same "rm exits 0" 0 $?
-  sleep 1
-  if ls "$AGENTS" 2>/dev/null | grep -qi "$PROBE"
-  then bad "unit removed" "still present in $AGENTS"; else ok "unit removed"; fi
+  if wait_until 10 "! ls \"$AGENTS\" 2>/dev/null | grep -qi $PROBE"
+  then ok "unit removed"; else bad "unit removed" "still present in $AGENTS after 10s"; fi
   case "$BACKEND" in
     launchd)
-      if launchctl list 2>/dev/null | grep -qi "$PROBE"
-      then bad "unloaded" "still in launchctl list"; else ok "unloaded from launchctl"; fi ;;
+      if wait_until 10 "! launchctl list 2>/dev/null | grep -qi $PROBE"
+      then ok "unloaded from launchctl"; else bad "unloaded" "still listed after 10s"; fi ;;
     systemd)
-      if systemctl --user list-timers --all 2>/dev/null | grep -qi "$PROBE"
-      then bad "unloaded" "timer still listed"; else ok "timer removed from systemd"; fi ;;
+      if wait_until 10 "! systemctl --user list-timers --all 2>/dev/null | grep -qi $PROBE"
+      then ok "timer removed from systemd"; else bad "unloaded" "still listed after 10s"; fi ;;
   esac
 
   after_agents=$(ls "$AGENTS" 2>/dev/null | sort)

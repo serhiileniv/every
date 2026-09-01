@@ -224,7 +224,15 @@ module Every
       # Task Scheduler Exec actions do not expose a per-task environment block.
       # A tiny Ruby wrapper sets EVERY_HOME before requiring the runtime, so
       # custom data directories behave exactly like launchd/systemd services.
-      runtime_lib = File.expand_path("../lib", File.dirname(Runtime.bin))
+      #
+      # Derived from ROOT, not from Runtime.bin. Once the installer's every.cmd
+      # shim exists, Runtime.bin is <prefix>/bin/every.cmd and "../lib" resolves
+      # to <prefix>/lib -- but the code sits at <prefix>/lib/every/lib, so the
+      # wrapper would have failed to require "every". It is unused while the
+      # shim branch of task_action is taken, which is the only reason this has
+      # not bitten. ROOT is the tree the running code was loaded from, so
+      # ROOT/lib is right for both a checkout and an install.
+      runtime_lib = File.join(ROOT, "lib")
       <<~RUBY
         ENV["EVERY_HOME"] = #{DATA_DIR.dump}
         $LOAD_PATH.unshift(#{runtime_lib.dump})

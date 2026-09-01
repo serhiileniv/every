@@ -160,6 +160,23 @@ class WindowsTaskSchedulerTest < Minitest::Test
                     %(<?xml version="1.0" encoding="UTF-16"?>)
   end
 
+  # The wrapper used to derive its load path from Runtime.bin. With the
+  # installer's shim that is <prefix>/bin/every.cmd, so "../lib" gave
+  # <prefix>/lib while the code lives at <prefix>/lib/every/lib -- a wrapper
+  # that could not require "every" at all. Latent only because the shim branch
+  # of task_action bypasses it.
+  def test_wrapper_load_path_is_correct_even_with_the_shim
+    Every.stub(:windows?, true) do
+      Every::Runtime.stub(:bin, "C:/Program Files/every/bin/every.cmd") do
+        wrapper = WS.runner_wrapper("demo")
+        assert_includes wrapper, File.join(Every::ROOT, "lib").dump,
+                        "wrapper must load the tree the running code came from"
+        refute_includes wrapper, "C:/Program Files/every/lib\"",
+                        "wrapper must not derive its load path from the shim"
+      end
+    end
+  end
+
   def test_subminute_intervals_are_rejected
     error = assert_raises(ArgumentError) do
       WS.validate_schedule!(S.parse(["15s"]))
