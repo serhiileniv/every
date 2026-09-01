@@ -45,12 +45,21 @@ module Every
     if windows? && xdg.empty?
       local = env["LOCALAPPDATA"].to_s
       local = File.join(Dir.home, "AppData", "Local") if local.empty?
-      return File.join(local, "every")
+      return windows_path(File.join(local, "every"))
     end
 
     File.expand_path(
       xdg.start_with?("/") ? File.join(xdg, "every") : "~/.local/share/every"
     )
+  end
+
+  # LOCALAPPDATA/APPDATA come back with backslashes, and File.join adds a
+  # forward slash, so the raw result is mixed: "C:\\Users\\me\\AppData\\Local/every".
+  # It works -- Ruby and Windows both accept either separator -- but it is what
+  # `doctor`, `list` and error messages print. One separator throughout is the
+  # same location on disk, so nothing moves.
+  def self.windows_path(path)
+    path.tr("\\", "/")
   end
 
   # systemd user units live under $XDG_CONFIG_HOME/systemd/user (default
@@ -59,7 +68,7 @@ module Every
     if windows? && env["XDG_CONFIG_HOME"].to_s.empty?
       appdata = env["APPDATA"].to_s
       appdata = File.join(Dir.home, "AppData", "Roaming") if appdata.empty?
-      return File.join(appdata, "every")
+      return windows_path(File.join(appdata, "every"))
     end
 
     xdg = env["XDG_CONFIG_HOME"].to_s

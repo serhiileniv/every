@@ -57,6 +57,23 @@ class XdgTest < Minitest::Test
     end
   end
 
+  # Real Windows hands back backslashes; File.join then adds a forward slash.
+  # The result must not be a mixed-separator path, since it is what doctor and
+  # error messages print.
+  def test_windows_data_dir_normalises_backslashes
+    Every.stub(:windows?, true) do
+      assert_equal "C:/Users/Alice/AppData/Local/every",
+                   dd("LOCALAPPDATA" => "C:\\Users\\Alice\\AppData\\Local")
+    end
+  end
+
+  def test_windows_config_dir_normalises_backslashes
+    Every.stub(:windows?, true) do
+      assert_equal "C:/Users/Alice/AppData/Roaming/every",
+                   cd("APPDATA" => "C:\\Users\\Alice\\AppData\\Roaming")
+    end
+  end
+
   def test_windows_config_dir_uses_appdata
     Every.stub(:windows?, true) do
       assert_equal "C:/Users/Alice/AppData/Roaming/every",
