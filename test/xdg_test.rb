@@ -15,9 +15,12 @@ class XdgTest < Minitest::Test
     end
   end
 
+  # Expected side is expanded too: resolve_data_dir runs the result through
+  # File.expand_path, which on Windows prefixes the current drive ("D:/xdg/every").
+  # Stubbing windows? does not change that, so a bare "/xdg/every" fails there.
   def test_xdg_data_home
     Every.stub(:windows?, false) do
-      assert_equal "/xdg/every", dd("XDG_DATA_HOME" => "/xdg")
+      assert_equal File.expand_path("/xdg/every"), dd("XDG_DATA_HOME" => "/xdg")
     end
   end
 

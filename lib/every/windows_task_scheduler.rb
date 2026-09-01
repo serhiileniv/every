@@ -46,9 +46,12 @@ module Every
       true
     end
 
+    # Guarded on loaded? so a task the service no longer has still disables
+    # cleanly. CLI#rm calls disable before delete_units, so raising on an
+    # already-absent task would strand the store entry with no way to remove it.
     def disable(name)
       out, st = schtasks("/Change", "/TN", task_name(name), "/DISABLE")
-      raise "Task Scheduler disable failed: #{out.strip}" unless st.success?
+      raise "Task Scheduler disable failed: #{out.strip}" if !st.success? && loaded?(name)
       true
     end
 
@@ -106,7 +109,10 @@ module Every
 
     def delete_units(name)
       out, st = schtasks("/Delete", "/TN", task_name(name), "/F")
-      raise "Task Scheduler delete failed: #{out.strip}" unless st.success?
+      # A failed delete that leaves the task registered would keep firing at a
+      # wrapper we are about to remove, with no `every` record to find it by.
+      # A failure because it was already gone is not an error.
+      raise "Task Scheduler delete failed: #{out.strip}" if !st.success? && loaded?(name)
       [xml_path(name), wrapper_path(name)].each do |path|
         File.delete(path) if File.exist?(path)
       end
@@ -266,12 +272,27 @@ module Every
       Open3.capture2e("schtasks.exe", *args)
     end
 
+    # No -TaskPath filter: it throws when no task matches, and "no every tasks
+    # yet" is the normal state on a fresh install, not an error. Asking for
+    # everything fails only when the service really is broken, which is the one
+    # case the caller wants to hear about. parse_task_states already keeps just
+    # the \every\ rows.
+    #
+    # Single-quoted heredoc, and tested for stray control bytes: written as an
+    # interpolating one, a PowerShell path literal like '\every\' silently
+    # becomes an ESC byte and the query can never match.
+    TASK_STATE_SCRIPT = <<~'PS'
+      $ErrorActionPreference = 'Stop'
+      Get-ScheduledTask | Select-Object TaskPath, TaskName, State |
+        ConvertTo-Csv -NoTypeInformation
+    PS
+
+    def task_state_script
+      TASK_STATE_SCRIPT
+    end
+
     def powershell_task_query
-      script = <<~PS
-        $ErrorActionPreference = 'Stop'
-        $tasks = @(Get-ScheduledTask -TaskPath '\every\')
-        $tasks | Select-Object TaskPath, TaskName, State | ConvertTo-Csv -NoTypeInformation
-      PS
+      script = task_state_script
       powershell = ENV["EVERY_POWERSHELL"].to_s
       powershell = "powershell.exe" if powershell.empty?
       Open3.capture2e(powershell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
