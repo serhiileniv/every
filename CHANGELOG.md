@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.3.1 — 2026-09-01
+
+A Windows fix that 0.3.0 needed badly, and the tests that would have caught it.
+
+### Fixed
+- **`every add` could never register a task on Windows.** `schtasks /Create
+  /XML` hands the file to MSXML, which relies on a byte-order mark to know how
+  it is encoded. The XML was written as plain UTF-8 with no BOM, so it was
+  decoded as ANSI, reached the encoding declaration and failed with
+  `The task XML is malformed. (1,40)::ERROR: unable to switch the encoding`.
+  Nothing else in the tool works without a task, so the Windows backend was
+  effectively unusable in 0.3.0. The XML is now written UTF-16LE with a BOM,
+  which is what schtasks documents.
+- **Windows data paths no longer mix separators.** `LOCALAPPDATA` comes back
+  with backslashes and `File.join` adds a forward slash, so the data directory
+  printed as `C:\Users\me\AppData\Local/every` in `doctor`, `list` and error
+  messages. Same location on disk, so nothing moves.
+
+### Added
+- **End-to-end CI on all three schedulers.** Every backend was previously
+  verified only by generation tests — the suite asserted the shape of a plist,
+  a systemd unit and a Task Scheduler XML, then stopped. Nothing registered a
+  task with a real scheduler, ran it, and removed it again, which is exactly
+  how both bugs above reached a release.
+
+  `test/e2e/windows.ps1` drives the installed `every` against the live Task
+  Scheduler: registration confirmed by asking `Get-ScheduledTask` directly
+  rather than trusting `every list`, pause/resume checked against the service's
+  own `State`, quoting through the temp-script path, `@echo off`, timeouts,
+  exit codes, and `rm` of a task the service has already dropped.
+  `test/e2e/unix.sh` does the same for launchd and systemd and asserts the
+  agents directory is byte-identical afterwards. 59 assertions on Windows, 62
+  each on macOS and Linux.
+
 ## 0.3.0 — 2026-09-01
 
 Windows becomes a first-class platform, and Linux gets an install path that

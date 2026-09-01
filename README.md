@@ -93,7 +93,7 @@ minute; use WSL if you need the Unix backends or sub-minute intervals.
 curl -fsSL …/install.sh | sudo sh -s -- --prefix /usr/local
 
 # somewhere else, or a specific release
-curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version v0.3.0
+curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version v0.3.1
 
 # from a checkout (same flags)
 git clone https://github.com/serhiileniv/every.git && ./every/install.sh

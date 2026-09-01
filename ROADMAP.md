@@ -8,14 +8,17 @@ issue]** are self-contained.
 
 These are real limitations, not hidden ones:
 
-- **Linux is beta.** systemd unit generation is unit-tested and validated with
-  `systemd-analyze` in CI, but not yet exercised end-to-end on a real desktop
-  over days. Needs field reports before it loses the "beta" label.
-- **Windows is new.** Task Scheduler registration, the temporary-script command
-  path and the installer are unit-tested and exercised in Windows CI, but not
-  yet run on a real desktop over days. Same caveat as Linux: field reports
-  wanted. Interval schedules are floored at one minute there, and sub-minute
-  intervals need WSL.
+- **Linux is beta.** CI now registers a real systemd user timer, runs it,
+  pauses, resumes and removes it on every commit, and validates every generated
+  `OnCalendar` expression with `systemd-analyze`. What is still unproven is
+  long-running use on a real desktop over days. Needs field reports before it
+  loses the "beta" label.
+- **Windows is new.** CI drives the live Task Scheduler on every commit —
+  register, run, pause, resume, remove — and checks state against the service
+  itself rather than through `every`. Long-running use on a real desktop is
+  still unproven, so the same caveat as Linux applies: field reports wanted.
+  Interval schedules are floored at one minute there, and sub-minute intervals
+  need WSL.
 - **No bounded intervals.** "every 15m, but only 9–18 on weekdays" has no
   launchd primitive and isn't supported. Would need a runner-side time-window
   guard.

@@ -54,7 +54,7 @@ every installer
   install.sh --uninstall [--prefix DIR] [--force]
 
   --prefix DIR    where to install (default: ~/.local, or /usr/local as root)
-  --version TAG   install a specific release, e.g. --version v0.3.0
+  --version TAG   install a specific release, e.g. --version v0.3.1
   --ref BRANCH    install a branch, e.g. --ref main
   --uninstall     remove the install (tasks and logs are kept)
   --force         uninstall even while tasks are still scheduled
