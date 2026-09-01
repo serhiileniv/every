@@ -1,4 +1,5 @@
 require "minitest/autorun"
+require "tmpdir"
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 require "every"
 
@@ -130,6 +131,33 @@ class WindowsTaskSchedulerTest < Minitest::Test
         assert WS.disable("gone")
       end
     end
+  end
+
+  # Regression guard for the bug that made `every add` impossible on Windows:
+  # schtasks hands the XML to MSXML, which needs a BOM to know the encoding.
+  # Plain UTF-8 with no BOM was decoded as ANSI and rejected at the encoding
+  # declaration. No unit test could see it -- they all assert the XML *string*,
+  # and never the bytes that reach the service.
+  def test_task_xml_is_written_as_utf16_with_a_bom
+    dir = Dir.mktmpdir
+    path = File.join(dir, "demo.xml")
+    begin
+      WS.atomic_write_utf16(path, WS.task_xml("demo", S.parse(["15m"])))
+      bytes = File.binread(path)
+      assert_equal [0xFF, 0xFE], bytes[0, 2].bytes, "missing UTF-16LE byte-order mark"
+      text = bytes[2..].force_encoding(Encoding::UTF_16LE).encode(Encoding::UTF_8)
+      assert_includes text, %(<?xml version="1.0" encoding="UTF-16"?>)
+      assert_includes text, "\\every\\demo"
+    ensure
+      FileUtils.remove_entry(dir)
+    end
+  end
+
+  # The declaration has to describe the bytes actually written, or MSXML fails
+  # the same way from the other direction.
+  def test_xml_declaration_matches_the_written_encoding
+    assert_includes WS.task_xml("demo", S.parse(["15m"])),
+                    %(<?xml version="1.0" encoding="UTF-16"?>)
   end
 
   def test_subminute_intervals_are_rejected

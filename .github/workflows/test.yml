@@ -15,6 +15,11 @@ jobs:
         run: /usr/bin/ruby -cw bin/every lib/every.rb lib/every/*.rb
       - name: Unit tests
         run: for f in test/*_test.rb; do echo "== $f =="; /usr/bin/ruby "$f" || exit 1; done
+      # The unit tests only prove plist *generation*. This registers a real
+      # launchd agent, runs it, pauses/resumes/removes it, and asserts
+      # ~/Library/LaunchAgents is byte-identical afterwards.
+      - name: End-to-end (real launchd)
+        run: sh test/e2e/unix.sh "$PWD" "$RUNNER_TEMP/every-home"
 
   linux:
     runs-on: ubuntu-latest
@@ -28,6 +33,14 @@ jobs:
       # (Same script the `docker` workflow runs in a pinned container.)
       - name: systemd-analyze calendar validation
         run: ruby test/systemd_calendar_check.rb
+      # A user bus is needed to register user timers. Without it the E2E still
+      # runs and reports the lifecycle section as SKIP rather than passing it.
+      - name: Enable a systemd user session
+        run: |
+          sudo loginctl enable-linger "$USER" || true
+          systemctl --user show-environment || echo "no user bus — lifecycle will skip"
+      - name: End-to-end (real systemd)
+        run: sh test/e2e/unix.sh "$PWD" "$RUNNER_TEMP/every-home"
 
   windows:
     runs-on: windows-latest
@@ -77,6 +90,24 @@ jobs:
           & (Join-Path $prefix "bin\every.cmd") version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\install.ps1 -Prefix $prefix -Uninstall
+
+  # Windows against the REAL Task Scheduler service. The unit tests cover XML
+  # and CSV shapes in isolation, which is how a PowerShell query that could
+  # never match a task shipped in 0.3.0-rc. Installs first, so the every.cmd
+  # shim branch of Runtime.bin is what gets exercised.
+  windows-e2e:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install every
+        shell: pwsh
+        run: .\install.ps1 -Prefix "$env:RUNNER_TEMP\every"
+      - name: End-to-end (real Task Scheduler)
+        shell: pwsh
+        run: pwsh -File test/e2e/windows.ps1 -Prefix "$env:RUNNER_TEMP\every"
 
   # The Linux install path (install.sh) — the one users curl. Exercised end to
   # end: install, run the installed binary, uninstall, and prove it left
