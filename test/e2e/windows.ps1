@@ -172,18 +172,24 @@ $r = Every @('run', 'amper')
 Same "caret-escaped ampersand exits 0" 0 $r.Code
 Has "ampersand reaches the batch file intact" (Every @('log', 'amper')).Out "a&b"
 
-# Fidelity of the stored command, which is the product's actual guarantee:
-# whatever argv delivered must round-trip through the store unchanged.
-$spacedCmd = 'cmd /c "echo one   two"'
-$null = Every @('15m', '--name', 'spaced', '--', $spacedCmd)
-$stored = $null
-try {
-  $stored = (@((Every @('list', '--json')).Out | ConvertFrom-Json) |
-             Where-Object { $_.name -eq 'spaced' }).command
-} catch { }
-if ($stored -eq $spacedCmd) { Ok "command round-trips through the store verbatim" }
-else { Bad "stored command differs" ("sent [" + $spacedCmd + "] stored [" + $stored + "]") }
+# Runs of spaces cannot be delivered through PowerShell -> .cmd -> argv: the
+# chain re-tokenises before `every` sees anything, and `every` documents that
+# tokens after `--` are joined with single spaces, like cron. So seed the store
+# directly to test the thing that IS `every`'s: that whatever command it holds
+# reaches the generated temp script byte-for-byte.
+$seed = Join-Path $env:RUNNER_TEMP "seed_spaced.rb"
+@'
+$LOAD_PATH.unshift(ARGV[0])
+require "every"
+Every::Store.load.add("spaced",
+  { "cmd" => %q{cmd /c "echo one   two"}, "quiet" => true,
+    "schedule" => Every::Schedule.parse(["15m"]).to_h })
+'@ | Set-Content -Encoding UTF8 $seed
+ruby $seed (Join-Path $Prefix "lib\every\lib")
+if ($LASTEXITCODE -eq 0) { Ok "seeded a command with runs of spaces" }
+else { Bad "seed failed" "ruby exited $LASTEXITCODE" }
 $null = Every @('run', 'spaced')
+Has "runs of spaces survive into the temp script" (Every @('log', 'spaced')).Out "one   two"
 
 $null = Every @('15m', '--name', 'failing', '--', 'cmd /c "exit 42"')
 $null = Every @('run', 'failing')
