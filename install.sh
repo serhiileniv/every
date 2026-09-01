@@ -1,7 +1,7 @@
 #!/bin/sh
 # every — installer for Linux (and any Unix where Homebrew isn't the answer).
 #
-#   curl -fsSL https://raw.githubusercontent.com/Serhii-Leniv/every/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
 #   ./install.sh [--prefix DIR] [--version vX.Y.Z | --ref BRANCH]
 #   ./install.sh --uninstall [--prefix DIR] [--force]
 #
@@ -16,7 +16,7 @@
 
 set -eu
 
-REPO="Serhii-Leniv/every"
+REPO="serhiileniv/every"
 RUBY_MIN="2.6"
 
 PREFIX=""
@@ -54,7 +54,7 @@ every installer
   install.sh --uninstall [--prefix DIR] [--force]
 
   --prefix DIR    where to install (default: ~/.local, or /usr/local as root)
-  --version TAG   install a specific release, e.g. --version v0.2.0
+  --version TAG   install a specific release, e.g. --version v0.3.0
   --ref BRANCH    install a branch, e.g. --ref main
   --uninstall     remove the install (tasks and logs are kept)
   --force         uninstall even while tasks are still scheduled

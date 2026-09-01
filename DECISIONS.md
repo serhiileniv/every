@@ -109,6 +109,13 @@ Dated log; append, don't rewrite.
   github.com/Serhii-Leniv/every, authored as Serhii-Leniv via a dedicated
   `github-serhii` ssh alias; repo-local identity + pre-commit/pre-push guard
   hooks prevent any other account from committing or pushing here.
+- **2026-09-01 — Canonical repo URL is `github.com/serhiileniv/every`.** The
+  earlier `Serhii-Leniv` slug (see 2026-07-24) still resolves only because
+  GitHub redirects a renamed account, which stops the moment anyone registers
+  that name. Every URL a user fetches through — `install.sh`/`install.ps1`
+  release downloads, the README one-liner, `HOMEPAGE` — now names the current
+  account directly. The 2026-07-24 entry is left as written: it records what
+  was true then.
 - **2026-07-25 — Linux distribution is a POSIX `install.sh`, not packages.**
   `every` is one Ruby tree with no build step, so a `.deb`/`.rpm`/AUR set would
   be three release pipelines and three review queues to ship a `cp -R` — and

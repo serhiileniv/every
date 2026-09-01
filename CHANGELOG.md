@@ -1,12 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-09-01
+
+Windows becomes a first-class platform, and Linux gets an install path that
+isn't `git clone`.
 
 ### Added
+- **Native Windows support** — tasks register with the Windows Task Scheduler
+  under the `\every\` task path, so `every` now speaks all three system
+  schedulers: launchd, systemd, and Task Scheduler. Data lives under
+  `%LOCALAPPDATA%\every`. The command runs through a temporary `.cmd` (or
+  `.ps1`, when `EVERY_SHELL` points at PowerShell) rather than being passed as
+  an argv tail, which is what keeps quoting like `echo "my file.txt"` intact.
+  Tasks invoke a stable `every.cmd` shim instead of the Ruby interpreter path,
+  so upgrading Ruby doesn't silently orphan them. Interval schedules need at
+  least one minute on Windows. Thanks to [@OnlyPiglet](https://github.com/OnlyPiglet)
+  for the implementation.
+- **`install.ps1`** — PowerShell installer, staged and swapped like the Unix
+  one, with the checkout path exercised in Windows CI.
 - **A Linux install path that isn't source-only** — `install.sh`:
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/Serhii-Leniv/every/main/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
   ```
 
   Installs into `~/.local` without sudo (`--prefix /usr/local` for system-wide),
@@ -18,6 +33,22 @@
   POSIX `sh`, `shellcheck`-clean, exercised end to end in CI.
 - **`.gitattributes`** — pins LF on everything a Unix box executes, so a commit
   from a Windows checkout can't ship a CRLF shebang that fails to run on Linux.
+
+### Fixed
+- **`every list` and `every doctor` on Windows** — the PowerShell query that
+  reads task state was built in an interpolating heredoc, so the `'\every\'`
+  path literal collapsed to an ESC byte and the query could never match. It no
+  longer filters by task path at all: `Get-ScheduledTask -TaskPath` throws when
+  nothing matches, and having no tasks yet is a normal state, not an error.
+- **`every rm` on Windows** could strand a task. `disable` and `delete_units`
+  raised whenever `schtasks` failed, including when the task was already gone —
+  which left a registry entry with no way to remove it. Both now raise only if
+  the task is still registered afterwards.
+- **Scheduled output on Windows** no longer carries an echo of the command
+  itself; the generated `.cmd` starts with `@echo off`.
+- **`require "csv"`** is no longer loaded eagerly on every platform. It became a
+  bundled rather than default gem in Ruby 3.4, so under Bundler without it in
+  the Gemfile this was a `LoadError` before any `every` code ran.
 
 ## 0.2.0 — 2026-07-25
 

@@ -5,8 +5,8 @@ require "open3"
 require "rbconfig"
 
 module Every
-  VERSION = "0.2.0".freeze
-  HOMEPAGE = "https://github.com/Serhii-Leniv/every".freeze
+  VERSION = "0.3.0".freeze
+  HOMEPAGE = "https://github.com/serhiileniv/every".freeze
   TAGLINE = "humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)".freeze
 
   # Exit codes (sysexits.h convention): 0 ok · 64 usage/bad args ·

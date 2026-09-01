@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$repo = "Serhii-Leniv/every"
+$repo = "serhiileniv/every"
 
 function Say([string]$Message) { Write-Host $Message }
 function Die([string]$Message) {

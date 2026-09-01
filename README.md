@@ -9,7 +9,7 @@
 <p align="center"><sub>launchd on macOS · systemd on Linux (beta) · Task Scheduler on Windows · zero dependencies</sub></p>
 
 <p align="center">
-  <a href="https://github.com/Serhii-Leniv/every/actions/workflows/test.yml"><img src="https://github.com/Serhii-Leniv/every/actions/workflows/test.yml/badge.svg" alt="test"></a>
+  <a href="https://github.com/serhiileniv/every/actions/workflows/test.yml"><img src="https://github.com/serhiileniv/every/actions/workflows/test.yml/badge.svg" alt="test"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license: MIT"></a>
   <img src="https://img.shields.io/badge/dependencies-zero-blue.svg" alt="dependencies: zero">
 </p>
@@ -72,7 +72,7 @@ brew tap serhii-leniv/tap && brew trust serhii-leniv/tap && brew install every
 **Linux** — one line, no sudo (installs into `~/.local`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Serhii-Leniv/every/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
 ```
 
 **Windows** — PowerShell and RubyInstaller:
@@ -93,10 +93,10 @@ minute; use WSL if you need the Unix backends or sub-minute intervals.
 curl -fsSL …/install.sh | sudo sh -s -- --prefix /usr/local
 
 # somewhere else, or a specific release
-curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version v0.2.0
+curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version v0.3.0
 
 # from a checkout (same flags)
-git clone https://github.com/Serhii-Leniv/every.git && ./every/install.sh
+git clone https://github.com/serhiileniv/every.git && ./every/install.sh
 
 # uninstall (tasks and logs are kept; it won't strand a live timer)
 curl -fsSL …/install.sh | sh -s -- --uninstall
@@ -198,4 +198,4 @@ Follows `sysexits.h`, so scripts can branch on `$?`:
 Where it's going and what's still rough: [ROADMAP.md](ROADMAP.md). Issues and
 PRs welcome.
 
-MIT © [Serhii Leniv](https://github.com/Serhii-Leniv)
+MIT © [Serhii Leniv](https://github.com/serhiileniv)
