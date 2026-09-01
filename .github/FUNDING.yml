@@ -1,5 +1,5 @@
 # Funding configuration for this repository.
 # Mirrors the account-wide default in serhiileniv/.github.
-github: [serhiileniv]
+# github: [serhiileniv]   # uncomment once a GitHub Sponsors profile exists
 custom:
   - "https://send.monobank.ua/jar/3zo8nv9iuF"

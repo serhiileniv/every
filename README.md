@@ -12,6 +12,7 @@
   <a href="https://github.com/serhiileniv/every/actions/workflows/test.yml"><img src="https://github.com/serhiileniv/every/actions/workflows/test.yml/badge.svg" alt="test"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license: MIT"></a>
   <img src="https://img.shields.io/badge/dependencies-zero-blue.svg" alt="dependencies: zero">
+  <a href="https://send.monobank.ua/jar/3zo8nv9iuF"><img src="https://img.shields.io/badge/support-monobank_jar-172B35" alt="support: monobank jar"></a>
 </p>
 
 <p align="center">
