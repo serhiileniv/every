@@ -32,7 +32,7 @@ module Every
       validate_schedule!(schedule)
       FileUtils.mkdir_p(TASK_DIR)
       atomic_write(wrapper_path(name), runner_wrapper(name))
-      atomic_write(xml_path(name), task_xml(name, schedule))
+      atomic_write_utf16(xml_path(name), task_xml(name, schedule))
 
       out, st = schtasks("/Create", "/TN", task_name(name),
                          "/XML", xml_path(name), "/F")
@@ -128,7 +128,7 @@ module Every
     def task_xml(name, schedule)
       command, arguments = task_action(name)
       <<~XML
-        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml version="1.0" encoding="UTF-16"?>
         <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
           <RegistrationInfo>
             <Author>#{xml_escape(current_user)}</Author>
@@ -263,6 +263,23 @@ module Every
     def atomic_write(path, content)
       tmp = "#{path}.tmp.#{Process.pid}"
       File.write(tmp, content)
+      FileUtils.mv(tmp, path)
+    ensure
+      File.delete(tmp) if tmp && File.exist?(tmp)
+    end
+
+    # `schtasks /Create /XML` hands the file to MSXML, which relies on a
+    # byte-order mark to know how it is encoded. Written as plain UTF-8 with no
+    # BOM it is decoded as ANSI, reaches the encoding declaration and fails with
+    # "The task XML is malformed. (1,40)::ERROR: unable to switch the encoding"
+    # -- which made `every add` impossible on Windows. UTF-16LE + BOM is what
+    # schtasks documents, and the declaration above says UTF-16 to match.
+    def atomic_write_utf16(path, content)
+      tmp = "#{path}.tmp.#{Process.pid}"
+      File.open(tmp, "wb") do |f|
+        f.write("\xFF\xFE".b)
+        f.write(content.encode(Encoding::UTF_16LE).b)
+      end
       FileUtils.mv(tmp, path)
     ensure
       File.delete(tmp) if tmp && File.exist?(tmp)
