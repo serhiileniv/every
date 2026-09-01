@@ -4,13 +4,18 @@ Where `every` is going, and the honest gaps in it today. Order is rough
 priority, not a promise. Issues and PRs welcome — items marked **[good first
 issue]** are self-contained.
 
-## Known gaps in v0.1
+## Known gaps in v0.3
 
 These are real limitations, not hidden ones:
 
 - **Linux is beta.** systemd unit generation is unit-tested and validated with
   `systemd-analyze` in CI, but not yet exercised end-to-end on a real desktop
   over days. Needs field reports before it loses the "beta" label.
+- **Windows is new.** Task Scheduler registration, the temporary-script command
+  path and the installer are unit-tested and exercised in Windows CI, but not
+  yet run on a real desktop over days. Same caveat as Linux: field reports
+  wanted. Interval schedules are floored at one minute there, and sub-minute
+  intervals need WSL.
 - **No bounded intervals.** "every 15m, but only 9–18 on weekdays" has no
   launchd primitive and isn't supported. Would need a runner-side time-window
   guard.
@@ -24,8 +29,6 @@ These are real limitations, not hidden ones:
 
 ## Next
 
-- **`every list --json`** — machine-readable status for scripts, menu-bar apps,
-  and status lines. Small, high-leverage. **[good first issue]**
 - **Staleness watchdog** — warn when a task hasn't had a *successful* run in N
   days/intervals (a backup that silently stopped is the exact pain `every`
   exists to kill). Builds on the existing run ledger.

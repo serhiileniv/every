@@ -66,7 +66,7 @@ interface and a memory.
 **macOS** — Homebrew:
 
 ```bash
-brew tap serhii-leniv/tap && brew trust serhii-leniv/tap && brew install every
+brew tap serhiileniv/tap && brew trust serhiileniv/tap && brew install every
 ```
 
 **Linux** — one line, no sudo (installs into `~/.local`):

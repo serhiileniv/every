@@ -192,7 +192,7 @@ download() {
     v[0-9]*)
       url="https://github.com/$REPO/archive/refs/tags/$REF.tar.gz" ;;
     [0-9]*.[0-9]*)
-      # `--version 0.2.0` means the v0.2.0 tag, not a branch called 0.2.0.
+      # `--version 0.3.0` means the v0.3.0 tag, not a branch called 0.3.0.
       REF="v$REF"
       url="https://github.com/$REPO/archive/refs/tags/$REF.tar.gz" ;;
     *)
@@ -250,7 +250,7 @@ preflight() {
   case "$(uname -s)" in
     Darwin)
       warn "on macOS the Homebrew tap is the better path (it upgrades in place):"
-      warn "  brew tap serhii-leniv/tap && brew install every" ;;
+      warn "  brew tap serhiileniv/tap && brew install every" ;;
     Linux) ;;
     MINGW*|MSYS*|CYGWIN*)
       die "native Windows uses install.ps1 — run: powershell -ExecutionPolicy Bypass -File install.ps1" ;;
