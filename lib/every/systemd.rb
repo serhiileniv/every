@@ -17,6 +17,13 @@ module Every
       File.join(UNIT_DIR, "#{unit_base(name)}.timer")
     end
 
+    # Generic backend capability used by `doctor`.  File-backed schedulers can
+    # answer this locally; registry/service-backed schedulers provide their own
+    # implementation.
+    def resource_exists?(name)
+      File.exist?(unit_path(name))
+    end
+
     def service_path(name)
       File.join(UNIT_DIR, "#{unit_base(name)}.service")
     end

@@ -4,9 +4,9 @@
 
 <h1 align="center">every</h1>
 
-<p align="center"><strong>Schedule anything on your Mac. Actually know it ran.</strong></p>
+<p align="center"><strong>Schedule anything on your computer. Actually know it ran.</strong></p>
 
-<p align="center"><sub>launchd on macOS · systemd on Linux (beta) · zero dependencies</sub></p>
+<p align="center"><sub>launchd on macOS · systemd on Linux (beta) · Task Scheduler on Windows · zero dependencies</sub></p>
 
 <p align="center">
   <a href="https://github.com/Serhii-Leniv/every/actions/workflows/test.yml"><img src="https://github.com/Serhii-Leniv/every/actions/workflows/test.yml/badge.svg" alt="test"></a>
@@ -74,6 +74,16 @@ brew tap serhii-leniv/tap && brew trust serhii-leniv/tap && brew install every
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Serhii-Leniv/every/main/install.sh | sh
 ```
+
+**Windows** — PowerShell and RubyInstaller:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Native Windows tasks use the Windows Task Scheduler and store data under
+`%LOCALAPPDATA%\every`. Interval schedules on Windows require at least one
+minute; use WSL if you need the Unix backends or sub-minute intervals.
 
 <details>
 <summary>Options: system-wide, a pinned version, uninstall</summary>
@@ -168,11 +178,19 @@ Follows `sysexits.h`, so scripts can branch on `$?`:
   `loginctl enable-linger $USER` (the installer tells you if it's off). Failed
   runs notify through `notify-send`. Field reports very welcome — the units are
   tested, months of real desktop uptime aren't.
-- **Where things live:** tasks/logs/ledgers under `~/.local/share/every` by
-  default. Honors `$XDG_DATA_HOME` (data) and `$XDG_CONFIG_HOME` (systemd units
-  on Linux); `EVERY_HOME` overrides the data dir entirely. `NO_COLOR` is
-  respected. If you set `XDG_DATA_HOME` *after* creating tasks, the old ones
-  stay in the old dir.
+- **Windows:** native Windows Task Scheduler tasks, same commands; tasks live
+  under the `\\every\\` task path and invoke Ruby through a small per-task
+  wrapper. Calendar tasks use `StartWhenAvailable`; interval tasks require at
+  least one minute. Tasks use the current interactive user by default, so they
+  run while that user is logged in. The default shell is `cmd.exe` (set
+  `EVERY_SHELL` to a PowerShell executable when needed). Failure notifications
+  use best-effort `msg.exe` and are always recorded in the run log.
+- **Where things live:** on macOS/Linux, tasks/logs/ledgers live under
+  `~/.local/share/every` by default; native Windows uses
+  `%LOCALAPPDATA%\every`. Honors `$XDG_DATA_HOME` (data) and
+  `$XDG_CONFIG_HOME` (systemd units on Linux); `EVERY_HOME` overrides the data
+  dir entirely. `NO_COLOR` is respected. If you set `XDG_DATA_HOME` *after*
+  creating tasks, the old ones stay in the old dir.
 - Uninstall: `every rm` each task, then `rm -rf ~/.local/share/every`.
 
 ## Roadmap

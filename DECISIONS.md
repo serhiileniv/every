@@ -144,3 +144,12 @@ Dated log; append, don't rewrite.
   worktree; a CRLF shebang fails as `env: 'ruby\r': No such file or directory`
   before any of our code runs. Found while testing the installer against a
   Windows checkout mounted into a container.
+- **2026-08-31 — Native Windows uses Task Scheduler.** Windows tasks are
+  registered under `\\every\\` from Task Scheduler XML and invoke a generated
+  Ruby wrapper that pins `EVERY_HOME` before loading the runtime. Calendar
+  triggers use `StartWhenAvailable`, overlapping runs are ignored, and interval
+  schedules below one minute are rejected because Task Scheduler does not
+  provide a reliable 10-second repetition primitive. Tasks use the current
+  interactive user (and therefore run while that user is logged in). Native
+  Windows defaults to `cmd.exe`; `EVERY_SHELL` can select PowerShell. WSL
+  remains the Linux systemd path rather than being treated as native Windows.

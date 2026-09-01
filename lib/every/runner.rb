@@ -1,5 +1,5 @@
 module Every
-  # `every run <name>` — what launchd actually invokes. Executes the task's
+  # `every run <name>` — what the platform scheduler invokes. Executes the task's
   # command through the user's login shell (so PATH matches the terminal),
   # captures all output, and records the run.
   module Runner
@@ -75,30 +75,41 @@ module Every
         tail = tail.byteslice(over, HALF_OUTPUT)
       end
 
-      Open3.popen2e(*login_shell, cmd, chdir: dir, pgroup: true) do |stdin, out, wait|
-        stdin.close
-        pid = wait.pid
-        drain = lambda do
-          while (chunk = out.read(16 * 1024))
-            keep.call(chunk)
-          end
-        end
+      spawn_options = { chdir: dir }
+      # Negative process-group signals are a POSIX primitive.  Windows uses
+      # taskkill/Job Objects instead (see terminate), so do not pass pgroup
+      # there; older RubyInstaller builds reject the option entirely.
+      spawn_options[:pgroup] = true unless Every.windows?
 
-        begin
-          # wait.value lives INSIDE the timeout: a command that closes stdout
-          # early but keeps running still gets killed at the deadline.
-          if timeout_sec
-            Timeout.timeout(timeout_sec) { drain.call; status = wait.value }
-          else
-            drain.call
-            status = wait.value
+      argv, cleanup = command_argv(cmd)
+      begin
+        Open3.popen2e(*argv, **spawn_options) do |stdin, out, wait|
+          stdin.close
+          pid = wait.pid
+          drain = lambda do
+            while (chunk = out.read(16 * 1024))
+              keep.call(chunk)
+            end
           end
-        rescue Timeout::Error
-          timed_out = true
-          terminate(pid)
-          status = (wait.value rescue nil)
-          head << "\n[every: killed after #{timeout_sec}s timeout]\n"
+
+          begin
+            # wait.value lives INSIDE the timeout: a command that closes stdout
+            # early but keeps running still gets killed at the deadline.
+            if timeout_sec
+              Timeout.timeout(timeout_sec) { drain.call; status = wait.value }
+            else
+              drain.call
+              status = wait.value
+            end
+          rescue Timeout::Error
+            timed_out = true
+            terminate(pid)
+            status = (wait.value rescue nil)
+            head << "\n[every: killed after #{timeout_sec}s timeout]\n"
+          end
         end
+      ensure
+        cleanup.call
       end
 
       # Append the tail whenever it exists; only inject the truncation marker
@@ -123,6 +134,14 @@ module Every
     # Kill the whole process tree: with pgroup:true the child is its own group
     # leader, so a negative pid signals the group (no getpgid/reap race).
     def terminate(pid)
+      if Every.windows?
+        # taskkill /T reaches the shell's descendants.  A future native Job
+        # Object implementation can replace this without changing capture().
+        system("taskkill.exe", "/PID", pid.to_s, "/T", "/F",
+               out: File::NULL, err: File::NULL)
+        return
+      end
+
       Process.kill("TERM", -pid)
       sleep 0.3
       Process.kill("KILL", -pid)
@@ -133,20 +152,76 @@ module Every
     # Run through the user's login shell so PATH matches their terminal. Only
     # bash/zsh accept the bundled `-lc`; sh/dash/others reject `-l`, so use -c.
     def login_shell
-      return ["/bin/zsh", "-lc"] if RUBY_PLATFORM.include?("darwin")
+      return windows_shell if Every.windows?
+      return ["/bin/zsh", "-lc"] if Every.darwin?
       sh = ENV["SHELL"] || "/bin/bash"
       [sh, sh =~ /(bash|zsh)\z/ ? "-lc" : "-c"]
+    end
+
+    def windows_shell
+      shell = ENV["EVERY_SHELL"].to_s
+      shell = ENV["COMSPEC"].to_s if shell.empty?
+      shell = "cmd.exe" if shell.empty?
+      base = File.basename(shell).downcase.sub(/\.exe\z/, "")
+      if base == "powershell" || base == "pwsh"
+        [shell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command"]
+      else
+        [shell, "/d", "/s", "/c"]
+      end
+    end
+
+    # Passing a quoted command as the final argv element of cmd.exe makes Ruby
+    # add another Windows command-line escaping layer. A temporary script gives
+    # cmd.exe and PowerShell the command text verbatim while preserving cwd,
+    # output capture, and timeout behavior in capture().
+    def command_argv(cmd)
+      return [*login_shell, cmd], -> {} unless Every.windows?
+
+      require "tempfile"
+      shell = windows_shell
+      powershell = shell.last == "-Command"
+      suffix = powershell ? ".ps1" : ".cmd"
+      temp = Tempfile.new(["every-command", suffix])
+      temp.binmode
+      content = "#{cmd}\r\n"
+      content = "\uFEFF#{content}" if powershell
+      temp.write(content.encode(Encoding::UTF_8))
+      temp.close
+      argv = if powershell
+               [*shell[0...-1], "-File", temp.path]
+             else
+               [*shell, temp.path]
+             end
+      [argv, -> { temp.close! rescue nil }]
+    rescue StandardError
+      temp.close! rescue nil if temp
+      raise
     end
 
     # Desktop notification so failures don't die silently in a log file.
     def notify_failure(name, exit_code)
       msg = "#{name} failed (exit #{exit_code}) — every log #{name}"
-      if RUBY_PLATFORM.include?("darwin")
+      if Every.darwin?
         script = "display notification \"#{osa_esc(msg)}\" with title \"every\""
         system("osascript", "-e", script, out: File::NULL, err: File::NULL)
+      elsif Every.windows?
+        notify_windows(msg)
       else
         system("notify-send", "every", msg, out: File::NULL, err: File::NULL)
       end
+    end
+
+    # Windows has no inbox notification utility guaranteed across editions.
+    # `msg.exe` is a best-effort fallback for the current interactive user; a
+    # failure to display it must never turn an already-recorded task failure
+    # into another failure.
+    def notify_windows(msg)
+      user = ENV["USERNAME"].to_s
+      return if user.empty?
+      system("msg.exe", user, "/TIME:5", msg,
+             out: File::NULL, err: File::NULL)
+    rescue StandardError
+      nil
     end
 
     def osa_esc(s)
@@ -162,7 +237,7 @@ module Every
       [dir, nil]
     rescue SystemCallError
       [Dir.home,
-       "note: cwd #{dir} not readable under launchd (TCC) — ran from #{Dir.home}\n"]
+      "note: cwd #{dir} not readable under scheduler — ran from #{Dir.home}\n"]
     end
 
     def append_log(name, started, exit_code, duration, out)
@@ -193,7 +268,13 @@ module Every
       return if lines.length <= MAX_RUN_RECORDS
       tmp = "#{path}.tmp.#{Process.pid}"
       File.write(tmp, lines.last(MAX_RUN_RECORDS).join)
-      File.rename(tmp, path)   # atomic: a crash mid-trim can't truncate history
+      if Every.windows?
+        # Do not use force: true: a failed replacement must raise instead of
+        # silently dropping the freshly written trimmed ledger.
+        FileUtils.mv(tmp, path)
+      else
+        File.rename(tmp, path)   # atomic: a crash mid-trim can't truncate history
+      end
     end
 
     def rotate(path)

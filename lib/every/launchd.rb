@@ -22,6 +22,13 @@ module Every
       plist_path(name)
     end
 
+    # Generic backend capability used by `doctor`.  File-backed schedulers can
+    # answer this locally; registry/service-backed schedulers provide their own
+    # implementation.
+    def resource_exists?(name)
+      File.exist?(unit_path(name))
+    end
+
     def delete_units(name)
       p = plist_path(name)
       File.delete(p) if File.exist?(p)

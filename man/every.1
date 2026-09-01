@@ -1,6 +1,6 @@
-.TH EVERY 1 "July 2026" "every" "User Commands"
+.TH EVERY 1 "August 2026" "every" "User Commands"
 .SH NAME
-every \- humane task scheduler for macOS (launchd) and Linux (systemd)
+every \- humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)
 .SH SYNOPSIS
 .B every
 .I schedule
@@ -25,13 +25,13 @@ every \- humane task scheduler for macOS (launchd) and Linux (systemd)
 .B every
 schedules a command with one human phrase and, unlike raw cron or launchd,
 records every run so you can see whether it actually happened. It generates a
-launchd agent (macOS) or a systemd user timer (Linux) per task; the command
-runs through your login shell in the directory it was added from, and its
-output is captured to a per\-task log.
+launchd agent (macOS), a systemd user timer (Linux), or a Windows Task
+Scheduler task per task; the command runs through the platform shell in the
+directory it was added from, and its output is captured to a per\-task log.
 .SH SCHEDULE
 .TP
 .BI Ns " / " Nm " / " Nh
-fixed interval (minimum 10s), e.g.\& \fB90s\fR, \fB15m\fR, \fB2h\fR
+fixed interval (minimum 10s on Unix; 1m on Windows), e.g.\& \fB90s\fR, \fB15m\fR, \fB2h\fR
 .TP
 .B hourly
 every hour
@@ -112,6 +112,12 @@ Data lives in \fB$XDG_DATA_HOME/every\fR (default \fB~/.local/share/every\fR).
 .B XDG_CONFIG_HOME
 systemd user units on Linux (default \fB~/.config/systemd/user\fR).
 .TP
+.B LOCALAPPDATA
+Native Windows data defaults to \fB%LOCALAPPDATA%\\every\fR.
+.TP
+.B EVERY_SHELL
+Select the Windows shell executable (defaults to \fB%COMSPEC%\fR / cmd.exe).
+.TP
 .B NO_COLOR
 Disable ANSI color (see https://no-color.org).
 .SH FILES
@@ -124,6 +130,9 @@ per\-task run output
 .TP
 .B ~/Library/LaunchAgents/com.every.\fIname\fB.plist
 launchd agent (macOS)
+.TP
+.B %LOCALAPPDATA%\\every
+task registry and logs (native Windows)
 .SH EXAMPLES
 .nf
 every day 9am \-\- brew update
@@ -134,6 +143,7 @@ every list \-\-json | jq \-r '.[] | select(.status | test("FAIL")) | .name'
 .SH SEE ALSO
 .BR launchctl (1),
 .BR systemctl (1),
+.BR schtasks (1),
 .BR crontab (5)
 .PP
 Homepage: https://github.com/Serhii-Leniv/every

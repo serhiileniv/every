@@ -1,7 +1,7 @@
 module Every
   class CLI
-    # Bounded so the generated unit filename (com.every.<name>.plist /
-    # every-<name>.timer) stays under the 255-byte filesystem limit.
+    # Bounded so generated unit/task identifiers and wrapper filenames remain
+    # well below platform limits (plist, systemd unit, or Task Scheduler).
     MAX_NAME = 100
 
     def initialize(argv)
@@ -97,6 +97,10 @@ module Every
       begin
         backend.write(name, schedule)
         backend.enable(name)
+      rescue ArgumentError
+        store.remove(name)                 # roll back so store & scheduler agree
+        backend.delete_units(name) rescue nil
+        raise
       rescue => e
         store.remove(name)                 # roll back so store & scheduler agree
         backend.delete_units(name) rescue nil
@@ -365,7 +369,7 @@ module Every
         every #{VERSION} — #{TAGLINE}
         #{HOMEPAGE}
 
-        schedule anything on your Mac, humanely
+        schedule anything on your computer, humanely
 
         add a task:
           every 15m -- ~/bin/sync-notes.sh
@@ -377,9 +381,10 @@ module Every
           Flags: --name NAME, --quiet (no failure notification),
                  --timeout 30m (kill a run that overruns, so it can't block
                  the next one).
-          The command runs through your login shell (PATH works), in the
-          directory where you added it. Missed calendar runs fire on wake.
-          Failed runs pop a macOS notification unless --quiet.
+          The command runs through your platform shell (PATH works), in the
+          directory where you added it. Missed calendar runs fire when the
+          scheduler becomes available. Failed runs notify when supported unless
+          --quiet.
 
         manage:
           every list                what's scheduled, last/next run, ok/FAIL

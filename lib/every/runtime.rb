@@ -1,5 +1,5 @@
 module Every
-  # launchd/systemd-spawned processes can't read TCC-protected folders on macOS
+  # Scheduler-spawned processes can't read TCC-protected folders on macOS
   # (Documents, Desktop, Downloads) — if the tool lives there, every scheduled
   # run dies with "Operation not permitted" before our code even loads. So when
   # (and ONLY when) the install sits in such a folder, we mirror bin/ + lib/
@@ -51,6 +51,13 @@ module Every
     # the /opt/homebrew/bin/every symlink, which survives version upgrades.
     def bin
       return BIN if needs_copy?
+      if Every.windows?
+        # The installer owns this shim and refreshes it when Ruby is upgraded.
+        # Task Scheduler therefore keeps a stable entrypoint instead of
+        # persisting the current Ruby executable path in every task.
+        shim = File.expand_path("../../bin/every.cmd", ROOT)
+        return shim if File.file?(shim)
+      end
       launcher = File.expand_path($PROGRAM_NAME)
       File.exist?(launcher) ? launcher : Every::BIN
     end

@@ -6,13 +6,19 @@ module Every
 
     def run
       failures = 0
-      darwin = RUBY_PLATFORM.include?("darwin")
+      darwin = Every.darwin?
+      windows = Every.windows?
 
       if darwin
         _out, st = Open3.capture2e("launchctl", "print", "gui/#{Launchd.uid}")
         failures += report("launchd user session reachable (gui/#{Launchd.uid})",
                            st.success?,
                            "no GUI session — launchd agents don't run over bare SSH sessions")
+      elsif windows
+        out, st = WindowsTaskScheduler.scheduler_status
+        scheduler_ok = st.success? && out =~ /STATE\s*:\s*4\b/i
+        failures += report("Windows Task Scheduler service running", !!scheduler_ok,
+                           "start the Task Scheduler service, then run `every doctor` again")
       else
         out, st = Systemd.sysctl("is-system-running")
         ok = st.success? || out.strip == "degraded"
@@ -48,13 +54,25 @@ module Every
       store.tasks.each do |name, task|
         puts "\ntask: #{name}"
         unit = backend.unit_path(name)
-        failures += report("unit exists (#{unit})", File.exist?(unit),
+        resource_exists = if backend.respond_to?(:resource_exists?)
+                            backend.resource_exists?(name)
+                          else
+                            File.exist?(unit)
+                          end
+        failures += report("scheduler resource exists (#{unit})", resource_exists,
                            "re-create the task: every rm #{name} && every <schedule> -- <cmd>")
 
         if task["paused"]
           puts "  · paused — resume with: every resume #{name}"
         else
-          failures += report("scheduled in #{darwin ? 'launchd' : 'systemd'}",
+          scheduler_name = if darwin
+                             "launchd"
+                           elsif windows
+                             "Windows Task Scheduler"
+                           else
+                             "systemd"
+                           end
+          failures += report("scheduled in #{scheduler_name}",
                              loaded.include?(name),
                              "load it: every resume #{name}")
         end
@@ -62,15 +80,27 @@ module Every
         first_word = task["cmd"].to_s.strip.split(/\s+/).first.to_s
         if first_word =~ /\A[\w][\w.-]*\z/
           # A plain command name — check PATH the way the runner will resolve it.
-          _o, st = Open3.capture2e(*Runner.login_shell, "command -v #{shellword(first_word)}")
+          probe = if windows
+                    ["where.exe", first_word]
+                  else
+                    [*Runner.login_shell, "command -v #{shellword(first_word)}"]
+                  end
+          _o, st = Open3.capture2e(*probe)
           failures += report("command resolvable in login shell (#{first_word})",
                              st.success?,
-                             "tasks run in a LOGIN shell: PATH set only in the interactive rc file " \
-                             "(~/.zshrc / ~/.bashrc, e.g. mise/rbenv hooks) is not visible — move it " \
-                             "to ~/.zprofile / ~/.profile, or use an absolute path")
-        elsif first_word.include?("/")
+                             windows ?
+                               "tasks use the Windows shell; check the user/system PATH, or use an absolute path" :
+                               "tasks run in a LOGIN shell: PATH set only in the interactive rc file " \
+                               "(~/.zshrc / ~/.bashrc, e.g. mise/rbenv hooks) is not visible — move it " \
+                               "to ~/.zprofile / ~/.profile, or use an absolute path")
+        elsif first_word.include?("/") ||
+              (windows && (first_word.include?("\\") || first_word =~ /\A[A-Za-z]:/))
           # A path (possibly ~-relative) — expand ~ the way the shell does.
-          expanded = first_word.sub(/\A~/, Dir.home)
+          expanded = if windows
+                       first_word.sub(/\A%USERPROFILE%/i, Dir.home)
+                     else
+                       first_word.sub(/\A~/, Dir.home)
+                     end
           failures += report("command file exists (#{first_word})", File.exist?(expanded),
                              "not found: #{expanded} — check the path")
         else

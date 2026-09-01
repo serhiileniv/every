@@ -9,29 +9,55 @@ class XdgTest < Minitest::Test
   def cd(env) Every.resolve_config_dir(env) end
 
   def test_every_home_overrides_everything
-    assert_equal File.expand_path("/custom/x"),
-                 dd("EVERY_HOME" => "/custom/x", "XDG_DATA_HOME" => "/xdg")
+    Every.stub(:windows?, false) do
+      assert_equal File.expand_path("/custom/x"),
+                   dd("EVERY_HOME" => "/custom/x", "XDG_DATA_HOME" => "/xdg")
+    end
   end
 
   def test_xdg_data_home
-    assert_equal "/xdg/every", dd("XDG_DATA_HOME" => "/xdg")
+    Every.stub(:windows?, false) do
+      assert_equal "/xdg/every", dd("XDG_DATA_HOME" => "/xdg")
+    end
   end
 
   def test_default_when_neither_set
-    assert_equal File.expand_path("~/.local/share/every"), dd({})
+    Every.stub(:windows?, false) do
+      assert_equal File.expand_path("~/.local/share/every"), dd({})
+    end
   end
 
   # XDG spec: a non-absolute XDG_DATA_HOME must be ignored.
   def test_relative_xdg_data_home_ignored
-    assert_equal File.expand_path("~/.local/share/every"),
-                 dd("XDG_DATA_HOME" => "relative/path")
+    Every.stub(:windows?, false) do
+      assert_equal File.expand_path("~/.local/share/every"),
+                   dd("XDG_DATA_HOME" => "relative/path")
+    end
   end
 
   def test_config_dir_honors_xdg
-    assert_equal "/cfg/systemd/user", cd("XDG_CONFIG_HOME" => "/cfg")
+    Every.stub(:windows?, false) do
+      assert_equal "/cfg/systemd/user", cd("XDG_CONFIG_HOME" => "/cfg")
+    end
   end
 
   def test_config_dir_default
-    assert_equal File.expand_path("~/.config/systemd/user"), cd({})
+    Every.stub(:windows?, false) do
+      assert_equal File.expand_path("~/.config/systemd/user"), cd({})
+    end
+  end
+
+  def test_windows_data_dir_uses_localappdata
+    Every.stub(:windows?, true) do
+      assert_equal "C:/Users/Alice/AppData/Local/every",
+                   dd("LOCALAPPDATA" => "C:/Users/Alice/AppData/Local")
+    end
+  end
+
+  def test_windows_config_dir_uses_appdata
+    Every.stub(:windows?, true) do
+      assert_equal "C:/Users/Alice/AppData/Roaming/every",
+                   cd("APPDATA" => "C:/Users/Alice/AppData/Roaming")
+    end
   end
 end

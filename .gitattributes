@@ -5,6 +5,7 @@
 * text=auto
 
 install.sh     text eol=lf
+install.ps1    text eol=lf
 bin/every      text eol=lf
 *.rb           text eol=lf
 *.sh           text eol=lf

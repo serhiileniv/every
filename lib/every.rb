@@ -7,7 +7,7 @@ require "rbconfig"
 module Every
   VERSION = "0.2.0".freeze
   HOMEPAGE = "https://github.com/Serhii-Leniv/every".freeze
-  TAGLINE = "humane task scheduler for macOS (launchd) and Linux (systemd, beta)".freeze
+  TAGLINE = "humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)".freeze
 
   # Exit codes (sysexits.h convention): 0 ok · 64 usage/bad args ·
   # 66 no such task/log · 1 other failure. Runs also surface 124 (timeout) and
@@ -18,20 +18,50 @@ module Every
   ROOT = File.expand_path("..", __dir__)
   BIN  = File.join(ROOT, "bin", "every")
 
+  # Keep platform checks in one place.  `RUBY_PLATFORM` also identifies
+  # mingw/mswin builds, while host_os is useful on Ruby implementations that
+  # use a less specific platform string.
+  def self.windows?
+    host = RbConfig::CONFIG["host_os"].to_s
+    !!(host =~ /mswin|mingw/ || RUBY_PLATFORM =~ /mswin|mingw/)
+  end
+
+  def self.darwin?
+    RUBY_PLATFORM.include?("darwin")
+  end
+
+  def self.linux?
+    RUBY_PLATFORM.include?("linux")
+  end
+
   # Data dir precedence: EVERY_HOME (explicit) → $XDG_DATA_HOME/every →
   # ~/.local/share/every (the XDG default anyway, so existing installs are
   # unchanged). Per the XDG spec, a non-absolute XDG_DATA_HOME is ignored.
   def self.resolve_data_dir(env = ENV)
+    explicit = env["EVERY_HOME"].to_s
+    return File.expand_path(explicit) unless explicit.empty?
+
     xdg = env["XDG_DATA_HOME"].to_s
+    if windows? && xdg.empty?
+      local = env["LOCALAPPDATA"].to_s
+      local = File.join(Dir.home, "AppData", "Local") if local.empty?
+      return File.join(local, "every")
+    end
+
     File.expand_path(
-      env["EVERY_HOME"] ||
-        (xdg.start_with?("/") ? File.join(xdg, "every") : "~/.local/share/every")
+      xdg.start_with?("/") ? File.join(xdg, "every") : "~/.local/share/every"
     )
   end
 
   # systemd user units live under $XDG_CONFIG_HOME/systemd/user (default
   # ~/.config/systemd/user). Non-absolute XDG_CONFIG_HOME is ignored.
   def self.resolve_config_dir(env = ENV)
+    if windows? && env["XDG_CONFIG_HOME"].to_s.empty?
+      appdata = env["APPDATA"].to_s
+      appdata = File.join(Dir.home, "AppData", "Roaming") if appdata.empty?
+      return File.join(appdata, "every")
+    end
+
     xdg = env["XDG_CONFIG_HOME"].to_s
     xdg.start_with?("/") ? File.join(xdg, "systemd", "user")
                          : File.expand_path("~/.config/systemd/user")
@@ -50,6 +80,7 @@ require "every/store"
 require "every/runtime"
 require "every/launchd"
 require "every/systemd"
+require "every/windows_task_scheduler"
 require "every/backend"
 require "every/runner"
 require "every/doctor"

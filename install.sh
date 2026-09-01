@@ -252,6 +252,8 @@ preflight() {
       warn "on macOS the Homebrew tap is the better path (it upgrades in place):"
       warn "  brew tap serhii-leniv/tap && brew install every" ;;
     Linux) ;;
+    MINGW*|MSYS*|CYGWIN*)
+      die "native Windows uses install.ps1 — run: powershell -ExecutionPolicy Bypass -File install.ps1" ;;
     *) warn "$(uname -s) isn't a supported platform — every schedules through launchd or systemd" ;;
   esac
 

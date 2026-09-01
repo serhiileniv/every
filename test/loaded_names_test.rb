@@ -2,9 +2,10 @@ require "minitest/autorun"
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 require "every"
 
-# The bulk-query parsers turn one `launchctl list` / `systemctl list-units`
-# dump into the set of loaded every-task names — so `list`/`doctor` make one
-# subprocess instead of one per task.
+# The bulk-query parsers turn one scheduler dump (`launchctl list`,
+# `systemctl list-units`, or `schtasks /FO CSV`) into the set of loaded
+# every-task names — so `list`/`doctor` make one subprocess instead of one per
+# task.
 class LoadedNamesTest < Minitest::Test
   def test_launchd_parses_only_every_labels
     out = <<~OUT

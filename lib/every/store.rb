@@ -89,7 +89,13 @@ module Every
         f.flush
         f.fsync
       end
-      File.rename(tmp, FILE)
+      # Both branches replace the destination without swallowing errors. The
+      # temp file still prevents a partial JSON write if the process crashes.
+      if Every.windows?
+        FileUtils.mv(tmp, FILE)
+      else
+        File.rename(tmp, FILE)
+      end
     ensure
       File.delete(tmp) if tmp && File.exist?(tmp)
     end
