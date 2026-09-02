@@ -41,12 +41,13 @@ func run() int {
 	}
 
 	c := &cli.CLI{
-		Dirs:    dirs,
-		Stdout:  os.Stdout,
-		Stderr:  os.Stderr,
-		Color:   ui.NewColor(os.Stdout, ui.OSEnv, ui.OSHasEnv),
-		Backend: b,
-		Now:     time.Now,
+		Dirs:     dirs,
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Color:    ui.NewColor(os.Stdout, ui.OSEnv, ui.OSHasEnv),
+		Backend:  b,
+		Now:      time.Now,
+		Launcher: launcher,
 	}
 	return c.Run(os.Args[1:])
 }

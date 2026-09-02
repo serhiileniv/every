@@ -391,3 +391,16 @@ func enabledNames(states []TaskState) []string {
 func (w *TaskScheduler) SchedulerStatus() (string, error) {
 	return runCmd("sc.exe", "query", "Schedule")
 }
+
+// Render returns the task XML.
+//
+// Note this is compared against the UTF-16 file on disk, so the migration's
+// caller reads that back as text; see internal/migrate. The StartBoundary is
+// clock-derived and therefore always differs, which means a Windows task is
+// rewritten on every migration pass rather than only when stale. That is
+// acceptable -- the pass runs once per version change, guarded by the stamp --
+// and the alternative is comparing everything except one element, which would
+// silently stop noticing real drift.
+func (w *TaskScheduler) Render(name string, s *schedule.Schedule) (string, error) {
+	return w.TaskXML(name, s)
+}

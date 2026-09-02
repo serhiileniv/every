@@ -184,3 +184,10 @@ func parseUnits(out string) []string {
 	}
 	return names
 }
+
+// Render returns the timer unit, which is what UnitPath points at and
+// therefore what the migration compares. A stale service is always rewritten
+// alongside it by Write.
+func (s *Systemd) Render(name string, sched *schedule.Schedule) (string, error) {
+	return s.TimerUnit(name, sched), nil
+}

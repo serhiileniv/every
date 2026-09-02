@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/serhiileniv/every/internal/backend"
+	"github.com/serhiileniv/every/internal/migrate"
 	"github.com/serhiileniv/every/internal/paths"
 	"github.com/serhiileniv/every/internal/runner"
 	"github.com/serhiileniv/every/internal/schedule"
@@ -24,6 +25,10 @@ type CLI struct {
 	Color   ui.Color
 	Backend backend.Backend
 	Now     func() time.Time
+
+	// Launcher is the path the scheduler invokes, needed to tell whether the
+	// units on disk were written for this binary or an older runtime.
+	Launcher string
 }
 
 // Run dispatches one invocation and returns the process exit code.
@@ -87,6 +92,18 @@ func (c *CLI) dispatch(argv []string) error {
 	if len(argv) == 0 {
 		fmt.Fprint(c.Stdout, helpText(c.Dirs.Data))
 		return nil
+	}
+
+	// Repair units left by an older runtime before anything reads them. Placed
+	// here rather than in each command so a path added later cannot forget it;
+	// the stamp file makes the no-op case a single small file read.
+	//
+	// Only for commands that are already touching the store or the scheduler:
+	// `help` and `version` must stay usable on a broken install, and must not
+	// take a detour through the data dir to print three lines.
+	switch argv[0] {
+	case "list", "ls", "run", "doctor":
+		c.migrate()
 	}
 
 	switch argv[0] {
@@ -415,4 +432,19 @@ func (c *CLI) runTask(name string) error {
 		return &exitError{code: code}
 	}
 	return nil
+}
+
+// migrate repairs stale scheduler units and reports what it did.
+//
+// Failures are surfaced but never fatal: a task that cannot be repaired must
+// not stop the command the user actually asked for, and the message tells them
+// how to fix it by hand.
+func (c *CLI) migrate() {
+	if c.Backend == nil {
+		return
+	}
+	res := migrate.Run(c.Dirs, c.Backend, c.Launcher, Version)
+	if res.Any() {
+		migrate.Report(c.Stdout, res)
+	}
 }

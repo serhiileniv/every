@@ -212,3 +212,9 @@ func runCmd(name string, args ...string) (string, error) {
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
+
+// Render returns what Write would produce, without writing it. Used by the
+// migration to decide whether a unit on disk is stale.
+func (l *Launchd) Render(name string, s *schedule.Schedule) (string, error) {
+	return l.PlistXML(name, s), nil
+}
