@@ -73,7 +73,7 @@ type Entry struct {
 type Schedule struct {
 	Raw      string
 	Kind     Kind
-	Interval int64 // seconds; interval schedules only
+	Interval Seconds // interval schedules only
 	Entries  []Entry
 }
 
@@ -95,22 +95,20 @@ func Parse(tokens []string) (*Schedule, error) {
 
 	if len(tokens) == 1 {
 		if m := intervalRe.FindStringSubmatch(first); m != nil {
-			n, err := strconv.ParseInt(m[1], 10, 64)
+			// Arbitrary precision, because Ruby's integers have none and the
+			// grammar is frozen. See the Seconds doc comment.
+			n, err := parseSeconds(m[1])
 			if err != nil {
-				// Ruby's integers are arbitrary-precision, so a digit string
-				// past int64 parsed there and wrote a nonsense value into the
-				// unit. Rejecting is the intended behavior change; it is the
-				// only one in the port, and no real input reaches it.
-				return nil, fmt.Errorf("interval out of range %q", tokens[0])
+				return nil, fmt.Errorf("cannot parse schedule %s", inspect(raw))
 			}
-			secs := n * unitSeconds[m[2]]
-			if secs < MinInterval {
+			secs := n.Mul(unitSeconds[m[2]])
+			if secs.Cmp(MinInterval) < 0 {
 				return nil, fmt.Errorf("interval too small (min %ds)", MinInterval)
 			}
 			return &Schedule{Raw: raw, Kind: Interval, Interval: secs}, nil
 		}
 		if first == "hourly" {
-			return &Schedule{Raw: raw, Kind: Interval, Interval: 3600}, nil
+			return &Schedule{Raw: raw, Kind: Interval, Interval: SecondsOf(3600)}, nil
 		}
 	}
 
@@ -276,12 +274,12 @@ func (s *Schedule) HumanInterval() string {
 		return ""
 	}
 	switch {
-	case s.Interval%3600 == 0:
-		return fmt.Sprintf("%dh", s.Interval/3600)
-	case s.Interval%60 == 0:
-		return fmt.Sprintf("%dm", s.Interval/60)
+	case s.Interval.Mod(3600) == 0:
+		return s.Interval.Div(3600) + "h"
+	case s.Interval.Mod(60) == 0:
+		return s.Interval.Div(60) + "m"
 	default:
-		return fmt.Sprintf("%ds", s.Interval)
+		return s.Interval.String() + "s"
 	}
 }
 

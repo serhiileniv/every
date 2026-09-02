@@ -147,7 +147,7 @@ func (c *CLI) nextDisplay(sched *schedule.Schedule, last *store.Run) string {
 		if lt.IsZero() {
 			return "soon"
 		}
-		return lt.Add(time.Duration(sched.Interval) * time.Second).Format("02 Jan 15:04")
+		return lt.Add(time.Duration(sched.Interval.Int64()) * time.Second).Format("02 Jan 15:04")
 	}
 	next := sched.NextRun(c.Now())
 	if next.IsZero() {
@@ -162,7 +162,7 @@ func (c *CLI) nextISO(sched *schedule.Schedule, last *store.Run) string {
 		if lt.IsZero() {
 			return ""
 		}
-		return lt.Add(time.Duration(sched.Interval) * time.Second).Format(time.RFC3339)
+		return lt.Add(time.Duration(sched.Interval.Int64()) * time.Second).Format(time.RFC3339)
 	}
 	next := sched.NextRun(c.Now())
 	if next.IsZero() {

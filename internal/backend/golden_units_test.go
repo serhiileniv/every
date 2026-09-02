@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf16"
+
+	"github.com/serhiileniv/every/internal/schedule"
 )
 
 func TestSystemdUnitsMatchGolden(t *testing.T) {
@@ -174,7 +176,7 @@ func TestSubMinuteIntervalRejected(t *testing.T) {
 
 	// Build one below the floor directly; the fixtures have no such case.
 	tiny := *sched
-	tiny.Interval = 15
+	tiny.Interval = schedule.SecondsOf(15)
 	err := w.ValidateSchedule(&tiny)
 	if err == nil {
 		t.Fatal("15s must be rejected on Windows")

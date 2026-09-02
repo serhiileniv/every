@@ -137,6 +137,44 @@ CASES = [
   %w[15m --timeout 5x -- true],
   %w[15m --timeout=0s -- true],
   %w[15m --timeout notaduration -- true],
+  %w[15m --timeout 5 -- true],
+  %w[15m --timeout -5m -- true],
+  %w[15m --timeout 0 -- true],
+
+  # -- add: --name edge cases that must be rejected or sanitized ----------
+  %w[15m --name / -- true],
+  %w[15m --name // -- true],
+  %w[15m --name --- -- true],
+  ["15m", "--name", " ", "--", "true"],
+  ["15m", "--name", "a" * 101, "--", "true"],
+
+  # -- add: the separator itself ------------------------------------------
+  %w[-- true],
+
+  # -- every schedule form, all the way through the CLI's error funnel ----
+  %w[0s -- true], %w[9s -- true], %w[1d -- true], %w[25h99 -- true],
+  ["mon", "8am", "--", "true"],
+  ["day", "5s", "--", "true"],
+  ["day", "9am,", "--", "true"],
+  ["day", ",", "--", "true"],
+  [",monday", "10:00", "--", "true"],
+  ["day", "9am", "6pm", "--", "true"],
+  ["", "--", "true"],
+
+  # -- list flag placement -------------------------------------------------
+  %w[list --json], %w[--json list], %w[ls --json extra],
+  %w[list extra], %w[ls],
+
+  # -- -n in every accepted position and shape ----------------------------
+  %w[log -n 1 nosuch], %w[log nosuch -n 1], %w[log -n -1 nosuch],
+  %w[log -n 999999 nosuch], %w[log -n nosuch],
+
+  # -- subcommands with extra arguments, which are ignored not rejected ---
+  %w[version extra], %w[help extra],
+  %w[rm nosuch extra], %w[pause nosuch extra],
+
+  # -- unknown flags fall through to the add funnel -----------------------
+  %w[--nonsense], %w[-x], %w[--json],
 ].freeze
 
 def norm(s, home, version)
@@ -147,8 +185,11 @@ launcher = File.join(ROOT, "bin", "every")
 version  = Every::VERSION
 records  = []
 
-Dir.mktmpdir("every-surface") do |home|
-  CASES.each do |argv|
+# Every case gets its own EVERY_HOME. Sharing one made successful adds
+# collide -- the second `-- true` derived the name "true-2" -- which recorded
+# an answer that depended on the order the table happened to be written in.
+CASES.each do |argv|
+  Dir.mktmpdir("every-surface") do |home|
     r_out, w_out = IO.pipe
     r_err, w_err = IO.pipe
     pid = spawn({ "EVERY_HOME" => home, "NO_COLOR" => "1", "TZ" => "America/New_York" },
@@ -161,6 +202,23 @@ Dir.mktmpdir("every-surface") do |home|
     r_out.close
     r_err.close
     _, status = Process.wait2(pid)
+
+    # A case that reaches a real scheduler does not belong in this table.
+    # The table is meant to be hermetic and replayable on any machine; the
+    # live lifecycle is test/e2e's job. This guard exists because a previous
+    # edit added succeeding `add` cases and left eleven launchd agents behind
+    # on the developer's machine before anyone noticed.
+    if status.exitstatus.zero? && out.include?("\u2713 scheduled ")
+      # Detected after the fact -- the command has already run -- so undo it
+      # before failing, or a bad edit leaves scheduler units on the machine
+      # of whoever regenerated the fixtures. Which is exactly what happened
+      # the first time: eleven stray launchd agents.
+      name = out[/\u2713 scheduled ([^:]+):/, 1]
+      system({ "EVERY_HOME" => home }, RbConfig.ruby, launcher, "rm", name.to_s,
+             out: File::NULL, err: File::NULL) if name
+      abort "surface: #{argv.inspect} registered a real task (cleaned up) -- " \
+            "remove it from CASES, or the table is not hermetic"
+    end
 
     records << {
       "argv"   => argv,

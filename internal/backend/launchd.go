@@ -52,7 +52,7 @@ func (l *Launchd) PlistXML(name string, s *schedule.Schedule) string {
 
 	var trigger string
 	if s.Kind == schedule.Interval {
-		trigger = fmt.Sprintf("  <key>StartInterval</key>\n  <integer>%d</integer>", s.Interval)
+		trigger = "  <key>StartInterval</key>\n  <integer>" + s.Interval.String() + "</integer>"
 	} else {
 		dicts := make([]string, 0, len(s.Entries))
 		for _, e := range s.Entries {

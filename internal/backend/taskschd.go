@@ -77,7 +77,7 @@ func (w *TaskScheduler) currentUser() (string, error) {
 // below a minute are refused rather than silently rounded up into a task that
 // fires at the wrong rate.
 func (w *TaskScheduler) ValidateSchedule(s *schedule.Schedule) error {
-	if s.Kind == schedule.Interval && s.Interval < 60 {
+	if s.Kind == schedule.Interval && s.Interval.Cmp(60) < 0 {
 		return fmt.Errorf(
 			"Windows Task Scheduler supports interval schedules from 1m; %s needs a future resident scheduler",
 			s.HumanInterval())
@@ -221,11 +221,11 @@ func (w *TaskScheduler) triggerXML(s *schedule.Schedule) string {
   <StartBoundary>%s</StartBoundary>
   <Enabled>true</Enabled>
   <Repetition>
-    <Interval>PT%dS</Interval>
+    <Interval>PT%sS</Interval>
     <StopAtDurationEnd>false</StopAtDurationEnd>
   </Repetition>
 </TimeTrigger>
-`, xmlTime(now.Add(time.Duration(s.Interval)*time.Second)), s.Interval)
+`, xmlTime(now.Add(time.Duration(s.Interval.Int64())*time.Second)), s.Interval.String())
 	}
 
 	var b strings.Builder

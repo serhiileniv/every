@@ -85,8 +85,8 @@ func (s *Systemd) TimerUnit(name string, sched *schedule.Schedule) string {
 
 	if sched.Kind == schedule.Interval {
 		lines = append(lines,
-			fmt.Sprintf("OnActiveSec=%d", sched.Interval),
-			fmt.Sprintf("OnUnitActiveSec=%d", sched.Interval))
+			"OnActiveSec="+sched.Interval.String(),
+			"OnUnitActiveSec="+sched.Interval.String())
 	} else {
 		for _, c := range CalendarLines(sched) {
 			lines = append(lines, "OnCalendar="+c)

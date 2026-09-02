@@ -18,10 +18,13 @@ import (
 // "weekly" kinds. They are decode-only: FromRecord migrates them to entries,
 // and a re-save writes the modern shape.
 type Record struct {
-	Raw      string  `json:"raw"`
-	Kind     string  `json:"kind"`
-	Interval int64   `json:"interval,omitempty"`
-	Entries  []Entry `json:"entries,omitempty"`
+	Raw  string `json:"raw"`
+	Kind string `json:"kind"`
+	// A pointer, because encoding/json's omitempty does nothing for a struct
+	// value -- it would emit "interval":0 on every calendar schedule, which
+	// Ruby never wrote and the byte-comparison would rightly reject.
+	Interval *Seconds `json:"interval,omitempty"`
+	Entries  []Entry  `json:"entries,omitempty"`
 
 	Hour    *int `json:"hour,omitempty"`
 	Minute  *int `json:"minute,omitempty"`
@@ -32,7 +35,8 @@ type Record struct {
 func (s *Schedule) ToRecord() Record {
 	r := Record{Raw: s.Raw, Kind: string(s.Kind)}
 	if s.Kind == Interval {
-		r.Interval = s.Interval
+		v := s.Interval
+		r.Interval = &v
 		return r
 	}
 	// An empty entries list still serializes as [], matching Ruby, where the
@@ -51,7 +55,11 @@ func (s *Schedule) ToRecord() Record {
 func FromRecord(r Record) (*Schedule, error) {
 	switch r.Kind {
 	case "interval":
-		return &Schedule{Raw: r.Raw, Kind: Interval, Interval: r.Interval}, nil
+		sched := &Schedule{Raw: r.Raw, Kind: Interval}
+		if r.Interval != nil {
+			sched.Interval = *r.Interval
+		}
+		return sched, nil
 
 	case "calendar":
 		return &Schedule{Raw: r.Raw, Kind: Calendar, Entries: normalizeEntries(r.Entries)}, nil
