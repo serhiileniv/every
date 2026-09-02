@@ -336,7 +336,12 @@ $version"
     esac
   fi
 
-  if ! have systemctl; then
+  # Guarded on the OS: launchd is the macOS backend, so systemctl is not
+  # expected there and telling a Mac user "systemd not found" is both wrong and
+  # alarming. install.sh already knows the platform (see preflight).
+  if [ "$(uname -s)" != "Linux" ]; then
+    :
+  elif ! have systemctl; then
     warn "systemd not found — every schedules through systemd user timers."
   elif ! systemctl --user show-environment >/dev/null 2>&1; then
     warn "no user systemd session here (bare container, or plain SSH?) —"
