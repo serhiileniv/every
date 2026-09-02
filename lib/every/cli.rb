@@ -18,6 +18,14 @@ module Every
       when "pause"                       then pause(@argv[1])
       when "resume"                      then resume(@argv[1])
       when "doctor"                      then Doctor.run
+      # Hidden test hooks, mirroring the Go tree's. Not features: absent from
+      # help, the man page and every completion script. They exist so ONE e2e
+      # script can drive either implementation during the port -- see
+      # internal/cli/testhooks.go for the full reasoning.
+      when "__parse"     then Schedule.parse(@argv[1..-1] || [])
+      when "__seed"      then seed(@argv[1..-1] || [])
+      when "__last-exit" then last_exit(@argv[1])
+      when "__count"     then puts(Store.load.tasks.size)
       when "run"                         then Runner.run(@argv[1] || usage!("run <name>"))
       else                                    add(@argv)
       end
@@ -280,6 +288,28 @@ module Every
     end
 
     # ---- helpers ----
+
+    # See the dispatch table: hidden hooks for the e2e script.
+    def seed(args)
+      usage!("__seed <name> <command> [timeout-seconds]") if args.length < 2
+      attrs = { "cmd" => args[1], "quiet" => true,
+                "schedule" => Schedule.parse(["15m"]).to_h }
+      attrs["timeout"] = args[2].to_i if args[2] && args[2] != ""
+      lock = Store.acquire_lock
+      Store.load.add(args[0], attrs)
+    ensure
+      lock&.close
+    end
+
+    def last_exit(name)
+      usage!("__last-exit <name>") if name.nil? || name.empty?
+      run = Store.load.last_run(name)
+      if run.nil?
+        warn "every: no runs for #{name.inspect}"
+        exit EX_NOINPUT
+      end
+      puts run["exit"]
+    end
 
     def derive_name(cmd, store)
       base = sanitize(File.basename(cmd.strip.split(/\s+/).first.to_s))[0, MAX_NAME].to_s
