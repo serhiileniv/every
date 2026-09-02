@@ -71,8 +71,8 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>__RUBY__</Command>
-      <Arguments>"/every-golden/home/windows-tasks/weekdays-930.runner.rb"</Arguments>
+      <Command>cmd.exe</Command>
+      <Arguments>/d /s /c set "EVERY_HOME=/every-golden/home" &amp;&amp; call "__LAUNCHER__.cmd" run "weekdays-930"</Arguments>
     </Exec>
   </Actions>
 </Task>

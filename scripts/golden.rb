@@ -185,6 +185,27 @@ puts
 # actually handed to schtasks. 0.3.0 shipped broken without the BOM, so the
 # encoded form is compared as raw bytes, not just the text.
 # ---------------------------------------------------------------------------
+# The Windows action has two branches. On a Mac, Every.windows? is false, so
+# the Ruby always takes the Ruby-wrapper branch -- which is precisely the
+# branch the port deletes, since there is no interpreter to wrap. Stub both
+# conditions so the fixture captures the SHIM branch instead: cmd.exe setting
+# EVERY_HOME inline and calling the launcher. That is the shape the Go emits,
+# so the two are actually comparable.
+#
+# The launcher placeholder carries a .cmd suffix here only because that suffix
+# is what selects the branch. It stays opaque on both sides.
+module Every
+  def self.windows?
+    true
+  end
+
+  module Runtime
+    def self.bin
+      "#{LAUNCHER}.cmd"
+    end
+  end
+end
+
 puts "taskschd:"
 schedules.each do |slug, sched|
   # Sub-minute intervals are rejected on Windows; skip rather than rescue, so a

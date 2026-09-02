@@ -35,8 +35,8 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>__RUBY__</Command>
-      <Arguments>"/every-golden/home/windows-tasks/legacy-weekday7.runner.rb"</Arguments>
+      <Command>cmd.exe</Command>
+      <Arguments>/d /s /c set "EVERY_HOME=/every-golden/home" &amp;&amp; call "__LAUNCHER__.cmd" run "legacy-weekday7"</Arguments>
     </Exec>
   </Actions>
 </Task>
