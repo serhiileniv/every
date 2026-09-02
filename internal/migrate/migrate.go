@@ -53,7 +53,7 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 	res := Result{Failed: map[string]error{}}
 
 	stamp := filepath.Join(dirs.Data, stampName)
-	want := version + "\n" + launcher + "\n"
+	want := stampContent(dirs, version, launcher)
 	if current, err := os.ReadFile(stamp); err == nil && string(current) == want {
 		return res
 	}
@@ -81,10 +81,11 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 	}
 
 	// Stamp only when nothing failed, so a partial repair is retried next time
-	// rather than being remembered as done.
+	// rather than being remembered as done. Recomputed rather than reusing
+	// `want`, because repairing may itself have touched the store.
 	if len(res.Failed) == 0 {
 		_ = os.MkdirAll(dirs.Data, 0o755)
-		_ = os.WriteFile(stamp, []byte(want), 0o644)
+		_ = os.WriteFile(stamp, []byte(stampContent(dirs, version, launcher)), 0o644)
 	}
 
 	cleanupRubyRuntime(dirs)
@@ -168,6 +169,29 @@ func cleanupRubyRuntime(dirs paths.Dirs) {
 		return // not the old layout; leave whatever this is alone
 	}
 	_ = os.RemoveAll(runtimeDir)
+}
+
+// stampContent identifies the state the units were last generated for.
+//
+// Version and launcher are the obvious parts. The store's modification time is
+// the part that is easy to leave out and wrong to: without it, the stamp claims
+// "already migrated" forever, and a task added by an OLDER every after a
+// migration is never repaired.
+//
+// That is not hypothetical. Upgrade to 0.4, roll back to 0.3.1 for any reason,
+// add a task -- it gets a Ruby-era unit -- then upgrade again. The stamp still
+// matches, the scan is skipped, and that one task silently never fires. Found
+// by running the full upgrade / rollback / upgrade cycle against real launchd;
+// it survived every test that only went forwards.
+//
+// The cost is one extra stat, and one rescan after each of every's own writes,
+// which then re-stamps and settles.
+func stampContent(dirs paths.Dirs, version, launcher string) string {
+	storeStamp := "none"
+	if info, err := os.Stat(filepath.Join(dirs.Data, "tasks.json")); err == nil {
+		storeStamp = fmt.Sprintf("%d/%d", info.ModTime().UnixNano(), info.Size())
+	}
+	return version + "\n" + launcher + "\n" + storeStamp + "\n"
 }
 
 // Report writes a one-line summary, and nothing at all when there was nothing

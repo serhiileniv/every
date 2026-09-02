@@ -311,3 +311,70 @@ func TestNeverCreatesAMissingUnit(t *testing.T) {
 		t.Error("created a unit file for a task that had none")
 	}
 }
+
+// The rollback-then-add hole.
+//
+// Upgrade to 0.4, roll back to an older every for any reason, add a task --
+// which gets an old-format unit -- then upgrade again. If the stamp only
+// recorded version and launcher it would still match, the scan would be
+// skipped, and that one task would silently never fire again. Which is
+// precisely the failure this package exists to prevent, reintroduced by the
+// optimization that makes it cheap.
+//
+// Found by running the full upgrade / rollback / upgrade cycle against real
+// launchd. Every test that only moved forwards passed.
+func TestRepairsTasksAddedByAnOlderEveryAfterMigrating(t *testing.T) {
+	dirs, b := setup(t)
+
+	// First upgrade: one task, migrated and stamped.
+	addTask(t, dirs, "existing")
+	writeRubyEraUnit(t, b, "existing")
+	if res := Run(dirs, b, b.launcher, "0.4.0"); len(res.Repaired) != 1 {
+		t.Fatalf("first migration repaired %v, want one", res.Repaired)
+	}
+
+	// Rolled back; an older every adds a task and writes an old-format unit.
+	addTask(t, dirs, "added-while-rolled-back")
+	writeRubyEraUnit(t, b, "added-while-rolled-back")
+
+	// Upgraded again. Same version, same launcher -- only the store changed.
+	b.written, b.enabled = nil, nil
+	res := Run(dirs, b, b.launcher, "0.4.0")
+
+	if len(res.Repaired) != 1 || res.Repaired[0] != "added-while-rolled-back" {
+		t.Fatalf("repaired %v, want the task the older every added", res.Repaired)
+	}
+	raw, err := os.ReadFile(b.UnitPath("added-while-rolled-back"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "ruby") {
+		t.Errorf("the unit still invokes ruby:\n%s", raw)
+	}
+}
+
+// The stamp must still suppress the scan when genuinely nothing has changed,
+// or the optimization is gone and every command pays for a full pass.
+func TestStampStillSuppressesWhenNothingChanged(t *testing.T) {
+	dirs, b := setup(t)
+	addTask(t, dirs, "backup")
+	sched, err := schedule.Parse([]string{"day", "9am"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Write("backup", sched); err != nil {
+		t.Fatal(err)
+	}
+
+	Run(dirs, b, b.launcher, "0.4.0")
+	b.written, b.enabled = nil, nil
+
+	for i := 0; i < 5; i++ {
+		if res := Run(dirs, b, b.launcher, "0.4.0"); res.Any() {
+			t.Fatalf("pass %d reported %+v, want silence", i, res)
+		}
+	}
+	if len(b.written) != 0 {
+		t.Errorf("rescanned with nothing changed: %v", b.written)
+	}
+}
