@@ -1,0 +1,11 @@
+{
+  "raw": "2h",
+  "kind": "interval",
+  "to_h": {
+    "raw": "2h",
+    "kind": "interval",
+    "interval": 7200
+  },
+  "next_run": null,
+  "human": "2h"
+}

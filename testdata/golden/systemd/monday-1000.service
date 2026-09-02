@@ -1,0 +1,7 @@
+[Unit]
+Description=every task monday-1000
+
+[Service]
+Type=oneshot
+Environment=EVERY_HOME=/every-golden/home
+ExecStart=__RUBY__ "__LAUNCHER__" run "monday-1000"

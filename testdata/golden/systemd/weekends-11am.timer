@@ -1,0 +1,11 @@
+[Unit]
+Description=every timer weekends-11am
+
+[Timer]
+AccuracySec=1s
+OnCalendar=Sun *-*-* 11:00:00
+OnCalendar=Sat *-*-* 11:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

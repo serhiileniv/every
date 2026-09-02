@@ -1,0 +1,17 @@
+{
+  "raw": "sunday 12am",
+  "kind": "calendar",
+  "to_h": {
+    "raw": "sunday 12am",
+    "kind": "calendar",
+    "entries": [
+      {
+        "hour": 0,
+        "minute": 0,
+        "weekday": 0
+      }
+    ]
+  },
+  "next_run": "2026-09-06T00:00:00-04:00",
+  "human": null
+}

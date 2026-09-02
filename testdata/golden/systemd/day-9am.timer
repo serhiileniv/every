@@ -1,0 +1,10 @@
+[Unit]
+Description=every timer day-9am
+
+[Timer]
+AccuracySec=1s
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

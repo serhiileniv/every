@@ -1,0 +1,11 @@
+{
+  "raw": "hourly",
+  "kind": "interval",
+  "to_h": {
+    "raw": "hourly",
+    "kind": "interval",
+    "interval": 3600
+  },
+  "next_run": null,
+  "human": "1h"
+}

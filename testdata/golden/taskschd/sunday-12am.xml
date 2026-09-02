@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Author>GOLDEN\goldenuser</Author>
+    <URI>\every\sunday-12am</URI>
+  </RegistrationInfo>
+  <Triggers>
+<CalendarTrigger>
+  <StartBoundary>2026-09-06T00:00:00</StartBoundary>
+  <Enabled>true</Enabled>
+<ScheduleByWeek>
+  <DaysOfWeek><Sunday/></DaysOfWeek>
+  <WeeksInterval>1</WeeksInterval>
+</ScheduleByWeek>
+
+</CalendarTrigger>
+
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>GOLDEN\goldenuser</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>__RUBY__</Command>
+      <Arguments>"/every-golden/home/windows-tasks/sunday-12am.runner.rb"</Arguments>
+    </Exec>
+  </Actions>
+</Task>

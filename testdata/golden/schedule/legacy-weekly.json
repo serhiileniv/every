@@ -1,0 +1,17 @@
+{
+  "raw": "weekly",
+  "kind": "calendar",
+  "to_h": {
+    "raw": "weekly",
+    "kind": "calendar",
+    "entries": [
+      {
+        "hour": 18,
+        "minute": 30,
+        "weekday": 3
+      }
+    ]
+  },
+  "next_run": "2026-09-02T18:30:00-04:00",
+  "human": null
+}

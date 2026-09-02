@@ -1,0 +1,14 @@
+[Unit]
+Description=every timer weekdays-930
+
+[Timer]
+AccuracySec=1s
+OnCalendar=Mon *-*-* 09:30:00
+OnCalendar=Tue *-*-* 09:30:00
+OnCalendar=Wed *-*-* 09:30:00
+OnCalendar=Thu *-*-* 09:30:00
+OnCalendar=Fri *-*-* 09:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

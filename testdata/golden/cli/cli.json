@@ -1,0 +1,424 @@
+[
+  {
+    "argv": [
+
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "version"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "log"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every log <name> [-n N]\n"
+  },
+  {
+    "argv": [
+      "rm"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every rm <name>\n"
+  },
+  {
+    "argv": [
+      "remove"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every rm <name>\n"
+  },
+  {
+    "argv": [
+      "pause"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every pause <name>\n"
+  },
+  {
+    "argv": [
+      "resume"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every resume <name>\n"
+  },
+  {
+    "argv": [
+      "run"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every run <name>\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+  },
+  {
+    "argv": [
+      "rm",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "pause",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "resume",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "run",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: unknown task \"nosuch\" — orphaned agent? try: every doctor\n"
+  },
+  {
+    "argv": [
+      "log",
+      "-n",
+      "5",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-n",
+      "5"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+  },
+  {
+    "argv": [
+      "log",
+      "-n",
+      "0",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+  },
+  {
+    "argv": [
+      "log",
+      "-n",
+      "notanumber",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+  },
+  {
+    "argv": [
+      "list"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "ls"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "ls",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--json",
+      "extra"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "frobnicate"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"frobnicate\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"15m\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "day",
+      "9am"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"day\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: missing command after --\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "banana",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: cannot parse schedule \"banana\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "0m",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: interval too small (min 10s)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "day",
+      "13pm",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: hour out of range for am/pm: \"13pm\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name",
+      "--quiet",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name=",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name",
+      "...",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name \"...\" is empty after sanitizing (names allow a-z 0-9 . _ -)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name",
+      ".",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name \".\" is empty after sanitizing (names allow a-z 0-9 . _ -)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--name",
+      "..",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name \"..\" is empty after sanitizing (names allow a-z 0-9 . _ -)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --timeout needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout",
+      "0s",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --timeout must be greater than 0\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout",
+      "5x",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: bad duration \"5x\" (e.g. 90s, 30m, 2h)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout=0s",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --timeout must be greater than 0\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout",
+      "notaduration",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: bad duration \"notaduration\" (e.g. 90s, 30m, 2h)\nsee: every help\n"
+  }
+]

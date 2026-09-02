@@ -1,0 +1,22 @@
+{
+  "raw": "monday,thursday 10:00",
+  "kind": "calendar",
+  "to_h": {
+    "raw": "monday,thursday 10:00",
+    "kind": "calendar",
+    "entries": [
+      {
+        "hour": 10,
+        "minute": 0,
+        "weekday": 1
+      },
+      {
+        "hour": 10,
+        "minute": 0,
+        "weekday": 4
+      }
+    ]
+  },
+  "next_run": "2026-09-03T10:00:00-04:00",
+  "human": null
+}

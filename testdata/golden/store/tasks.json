@@ -1,0 +1,57 @@
+{
+  "tasks": {
+    "backup": {
+      "cmd": "borg create ::{now} ~/src && echo done > /tmp/log 2>&1",
+      "schedule": {
+        "raw": "day 9am",
+        "kind": "calendar",
+        "entries": [
+          {
+            "hour": 9,
+            "minute": 0
+          }
+        ]
+      },
+      "cwd": "/Users/me/src",
+      "created_at": "2026-09-02T10:30:00-04:00",
+      "paused": false,
+      "quiet": false,
+      "timeout": 1800
+    },
+    "sync": {
+      "cmd": "rsync -a a/ b/",
+      "schedule": {
+        "raw": "15m",
+        "kind": "interval",
+        "interval": 900
+      },
+      "cwd": "/Users/me",
+      "created_at": "2026-09-02T10:30:00-04:00",
+      "paused": true,
+      "quiet": true
+    },
+    "unicode": {
+      "cmd": "echo 'héllo — wörld' && printf '<tag>'",
+      "schedule": {
+        "raw": "monday,thursday 10:00",
+        "kind": "calendar",
+        "entries": [
+          {
+            "hour": 10,
+            "minute": 0,
+            "weekday": 1
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "weekday": 4
+          }
+        ]
+      },
+      "cwd": "/Users/me",
+      "created_at": "2026-09-02T10:30:00-04:00",
+      "paused": false,
+      "quiet": false
+    }
+  }
+}

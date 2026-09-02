@@ -1,0 +1,10 @@
+[Unit]
+Description=every timer 90s
+
+[Timer]
+AccuracySec=1s
+OnActiveSec=90
+OnUnitActiveSec=90
+
+[Install]
+WantedBy=timers.target

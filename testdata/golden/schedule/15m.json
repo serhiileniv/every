@@ -1,0 +1,11 @@
+{
+  "raw": "15m",
+  "kind": "interval",
+  "to_h": {
+    "raw": "15m",
+    "kind": "interval",
+    "interval": 900
+  },
+  "next_run": null,
+  "human": "15m"
+}
