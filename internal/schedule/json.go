@@ -1,8 +1,9 @@
 package schedule
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/serhiileniv/every/internal/jsonx"
 )
 
 // Record is the on-disk form of a schedule, and the wire form inside a task
@@ -95,23 +96,8 @@ func deref(p *int) int {
 	return *p
 }
 
-// MarshalRecord encodes with HTML escaping off.
-//
-// Go's encoder escapes <, > and & as < and friends by default. Task
-// commands routinely contain `&&` and `> /dev/null`, and a schedule's raw
-// string is user input too, so the default would rewrite the bytes of every
-// affected store. Ruby does no such escaping.
+// MarshalRecord encodes a schedule record. See package jsonx for why the
+// standard library's Marshal is not used directly.
 func MarshalRecord(r Record) ([]byte, error) {
-	return marshalNoEscape(r)
-}
-
-func marshalNoEscape(v any) ([]byte, error) {
-	var buf jsonBuffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	// Encode appends a newline that Marshal would not.
-	return buf.trimTrailingNewline(), nil
+	return jsonx.Marshal(r)
 }

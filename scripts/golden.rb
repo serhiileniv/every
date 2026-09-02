@@ -135,7 +135,12 @@ def schedules
     LEGACY.map { |slug, h| [slug, Every::Schedule.from_h(h)] }
 end
 
-FileUtils.rm_rf(OUT)
+# Remove only the directories this script owns. Wiping OUT wholesale would
+# also delete cli/, which scripts/surface.rb writes -- the two are separate
+# generators sharing one fixture tree.
+%w[schedule launchd systemd taskschd store].each do |sub|
+  FileUtils.rm_rf(File.join(OUT, sub))
+end
 puts "golden -> #{OUT}"
 puts "clock  -> #{FIXED_NOW.iso8601}"
 puts
@@ -201,19 +206,22 @@ puts "store:"
 sample = {
   "tasks" => {
     # Insertion order is the contract: `every list` prints rows in this order.
-    "backup"  => {
+    # Deliberately NOT alphabetical -- with sorted names a map-backed port
+    # passes the ordering test by coincidence, which is how this fixture read
+    # before someone checked.
+    "nightly"  => {
       "cmd" => "borg create ::{now} ~/src && echo done > /tmp/log 2>&1",
       "schedule" => Every::Schedule.parse(["day", "9am"]).to_h,
       "cwd" => "/Users/me/src", "created_at" => FIXED_NOW.iso8601,
       "paused" => false, "quiet" => false, "timeout" => 1800
     },
-    "sync"    => {
+    "backup"   => {
       "cmd" => "rsync -a a/ b/",
       "schedule" => Every::Schedule.parse(["15m"]).to_h,
       "cwd" => "/Users/me", "created_at" => FIXED_NOW.iso8601,
       "paused" => true, "quiet" => true
     },
-    "unicode" => {
+    "archive"  => {
       "cmd" => "echo 'héllo — wörld' && printf '<tag>'",
       "schedule" => Every::Schedule.parse(["monday,thursday", "10:00"]).to_h,
       "cwd" => "/Users/me", "created_at" => FIXED_NOW.iso8601,

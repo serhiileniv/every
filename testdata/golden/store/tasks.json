@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "backup": {
+    "nightly": {
       "cmd": "borg create ::{now} ~/src && echo done > /tmp/log 2>&1",
       "schedule": {
         "raw": "day 9am",
@@ -18,7 +18,7 @@
       "quiet": false,
       "timeout": 1800
     },
-    "sync": {
+    "backup": {
       "cmd": "rsync -a a/ b/",
       "schedule": {
         "raw": "15m",
@@ -30,7 +30,7 @@
       "paused": true,
       "quiet": true
     },
-    "unicode": {
+    "archive": {
       "cmd": "echo 'héllo — wörld' && printf '<tag>'",
       "schedule": {
         "raw": "monday,thursday 10:00",
