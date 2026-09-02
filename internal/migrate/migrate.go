@@ -102,11 +102,21 @@ func repair(b backend.Backend, name string, task *store.Task) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	// No unit at all is not something to repair. A task can be in the store
+	// with nothing scheduled -- the user unloaded it by hand, a previous add
+	// failed halfway, the scheduler dropped it -- and creating one here would
+	// silently resurrect it. That case is `doctor`'s to report and `every
+	// resume` to fix, both of which say so out loud. Migration only ever
+	// rewrites a unit that already exists.
+	if current == "" {
+		return false, nil
+	}
+
 	fresh, err := freshUnit(b, name, sched)
 	if err != nil {
 		return false, err
 	}
-	if current != "" && current == fresh {
+	if current == fresh {
 		return false, nil
 	}
 

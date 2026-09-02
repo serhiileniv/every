@@ -162,6 +162,15 @@ func TestSecondPassIsANoOp(t *testing.T) {
 func TestLauncherChangeTriggersMigration(t *testing.T) {
 	dirs, b := setup(t)
 	addTask(t, dirs, "backup")
+	// A unit has to exist for there to be anything to repair -- migration
+	// rewrites, it never creates.
+	sched, err := schedule.Parse([]string{"day", "9am"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Write("backup", sched); err != nil {
+		t.Fatal(err)
+	}
 	Run(dirs, b, b.launcher, "0.4.0")
 
 	b.written = nil
@@ -276,5 +285,29 @@ func TestFreshInstallStamps(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dirs.Data, stampName)); err != nil {
 		t.Error("a fresh install did not stamp; every command would rescan")
+	}
+}
+
+// A task in the store with no unit is not migration's problem. It happens --
+// the user unloaded it by hand, a previous add failed halfway, the scheduler
+// dropped it -- and silently scheduling it here would resurrect something
+// somebody deliberately stopped. doctor reports it; `every resume` fixes it.
+//
+// This was a real bug: the first version wrote units for these, which broke an
+// e2e assertion and left a stray plist in a real ~/Library/LaunchAgents.
+func TestNeverCreatesAMissingUnit(t *testing.T) {
+	dirs, b := setup(t)
+	addTask(t, dirs, "unscheduled-on-purpose")
+
+	res := Run(dirs, b, b.launcher, "0.4.0")
+
+	if res.Any() {
+		t.Errorf("reported %+v, want silence for a task with no unit", res)
+	}
+	if len(b.written) != 0 || len(b.enabled) != 0 {
+		t.Errorf("scheduled a task that had no unit: written=%v enabled=%v", b.written, b.enabled)
+	}
+	if _, err := os.Stat(b.UnitPath("unscheduled-on-purpose")); !os.IsNotExist(err) {
+		t.Error("created a unit file for a task that had none")
 	}
 }
