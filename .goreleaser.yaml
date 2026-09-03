@@ -58,7 +58,7 @@ archives:
       - man/every.1
       - completions/*
 
-checksums:
+checksum:
   name_template: checksums.txt
 
 snapshot:

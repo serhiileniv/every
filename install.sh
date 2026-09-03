@@ -80,6 +80,10 @@ done
 if [ -z "$PREFIX" ]; then
   if [ "$(id -u)" = "0" ]; then PREFIX="/usr/local"; else PREFIX="$HOME/.local"; fi
 fi
+# A quoted --prefix '~/opt' reaches us with the tilde unexpanded, because the
+# shell only expands it unquoted. Expand it ourselves rather than creating a
+# directory literally named "~".
+# shellcheck disable=SC2088  # the tilde here is a case PATTERN, not a path
 case "$PREFIX" in
   "~") PREFIX="$HOME" ;;
   "~/"*) PREFIX="$HOME/${PREFIX#\~/}" ;;
