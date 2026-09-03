@@ -33,14 +33,14 @@ func TestAllUnitsMatchRubyAcrossTheGrammar(t *testing.T) {
 	t.Logf("matrix: %d schedules x 4 unit renderings = %d comparisons",
 		len(specs), len(specs)*4)
 
-	rendered := rubyRenderUnits(t, ruby, root, specs)
+	env, rendered := rubyRenderUnits(t, ruby, root, specs)
 
-	launchd := NewLaunchd(dualCfg(goldenLauncher))
-	systemd := NewSystemd(dualCfg(goldenLauncher))
+	launchd := NewLaunchd(dualCfgFor(env, goldenLauncher))
+	systemd := NewSystemd(dualCfgFor(env, goldenLauncher))
 
 	// The Task Scheduler action reproduces the shim branch, whose launcher
 	// carries a .cmd suffix; see scripts/golden.rb for why.
-	winCfg := dualCfg(goldenLauncher + ".cmd")
+	winCfg := dualCfgFor(env, goldenLauncher+".cmd")
 	win := NewTaskScheduler(winCfg)
 	win.Now = func() time.Time { return dualClock(t) }
 	win.User = func() (string, error) { return `GOLDEN\goldenuser`, nil }
@@ -91,6 +91,19 @@ func TestAllUnitsMatchRubyAcrossTheGrammar(t *testing.T) {
 type unitSpec struct {
 	Slug   string   `json:"slug"`
 	Tokens []string `json:"tokens"`
+}
+
+// rubyEnv is what the Ruby resolved for itself, so the Go side can be
+// configured identically.
+//
+// EVERY_HOME goes through File.expand_path, which on Windows prefixes the
+// current drive: "/every-golden/home" becomes "D:/every-golden/home". Pinning
+// the literal on the Go side therefore compared two different data dirs and
+// reported 882 mismatches that were entirely the harness's fault. Asking the
+// other implementation what it decided is both simpler and more honest than
+// reimplementing its rule in the test.
+type rubyEnv struct {
+	DataDir string `json:"data_dir"`
 }
 
 type rubyUnits struct {
@@ -161,8 +174,13 @@ func unitMatrix() []unitSpec {
 	return specs
 }
 
-func dualCfg(launcher string) Config {
+// dualCfgFor mirrors the data dir the Ruby resolved. Paths inside a unit are
+// POSIX because launchd and systemd are POSIX, whatever host is running this.
+func dualCfgFor(env rubyEnv, launcher string) Config {
 	cfg := goldenCfg()
+	cfg.Dirs.Data = env.DataDir
+	cfg.Dirs.Logs = env.DataDir + "/logs"
+	cfg.Dirs.Runs = env.DataDir + "/runs"
 	cfg.Launcher = launcher
 	return cfg
 }
@@ -199,7 +217,7 @@ func rubyForUnits(t *testing.T) (ruby, root string) {
 // rubyRenderUnits renders every unit type for the whole matrix in one
 // interpreter, under the same pinned environment the fixtures use: a fixed
 // data dir, user, clock and zone, so nothing machine-specific leaks in.
-func rubyRenderUnits(t *testing.T, ruby, root string, specs []unitSpec) map[string]rubyUnits {
+func rubyRenderUnits(t *testing.T, ruby, root string, specs []unitSpec) (rubyEnv, map[string]rubyUnits) {
 	t.Helper()
 
 	payload, err := json.Marshal(specs)
@@ -252,7 +270,7 @@ specs.each do |spec|
   out[spec["slug"]]["task_xml"] = Every::WindowsTaskScheduler.task_xml(spec["slug"], s)
 end
 
-puts JSON.generate(out)
+puts JSON.generate({ "data_dir" => Every::DATA_DIR, "units" => out })
 `
 	cmd := exec.Command(ruby, "-e", script, root, in)
 	out, err := cmd.Output()
@@ -263,14 +281,20 @@ puts JSON.generate(out)
 		t.Fatalf("ruby: %v", err)
 	}
 
-	var res map[string]rubyUnits
-	if err := json.Unmarshal(out, &res); err != nil {
+	var payloadOut struct {
+		DataDir string               `json:"data_dir"`
+		Units   map[string]rubyUnits `json:"units"`
+	}
+	if err := json.Unmarshal(out, &payloadOut); err != nil {
 		t.Fatalf("decoding ruby output: %v", err)
 	}
-	if len(res) != len(specs) {
-		t.Fatalf("ruby returned %d results for %d specs", len(res), len(specs))
+	if len(payloadOut.Units) != len(specs) {
+		t.Fatalf("ruby returned %d results for %d specs", len(payloadOut.Units), len(specs))
 	}
-	return res
+	if payloadOut.DataDir == "" {
+		t.Fatal("ruby did not report its data dir")
+	}
+	return rubyEnv{DataDir: payloadOut.DataDir}, payloadOut.Units
 }
 
 // The Task Scheduler file is UTF-16LE with a BOM, and that encoding is what
@@ -284,7 +308,8 @@ puts JSON.generate(out)
 // pure function of the text and 295 base64 round-trips through an interpreter
 // would be noise rather than evidence.
 func TestEveryTaskXMLEncodesAndDecodesLosslessly(t *testing.T) {
-	cfg := dualCfg(goldenLauncher + ".cmd")
+	cfg := goldenCfg()
+	cfg.Launcher = goldenLauncher + ".cmd"
 	win := NewTaskScheduler(cfg)
 	win.Now = func() time.Time { return dualClock(t) }
 	win.User = func() (string, error) { return `GOLDEN\goldenuser`, nil }

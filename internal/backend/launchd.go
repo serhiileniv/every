@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -54,7 +55,14 @@ func (l *Launchd) Write(name string, s *schedule.Schedule) error {
 // generated from the Ruby, and a plist that differs only cosmetically would
 // still make an upgrade rewrite every user's agents for no reason.
 func (l *Launchd) PlistXML(name string, s *schedule.Schedule) string {
-	agentLog := filepath.Join(l.cfg.Dirs.Logs, "_agent.log")
+	// path.Join, not filepath.Join: this string goes INTO a plist, and launchd
+	// is macOS-only, so the separator is always "/" regardless of the host
+	// building it. filepath.Join uses the HOST's separator, which turned the
+	// log path into backslashes when the generator ran on Windows -- harmless
+	// in production, since the backend only runs on macOS, but it broke the
+	// cross-platform golden tests that exist precisely so these generators are
+	// checked everywhere.
+	agentLog := path.Join(l.cfg.Dirs.Logs, "_agent.log")
 
 	var trigger string
 	if s.Kind == schedule.Interval {

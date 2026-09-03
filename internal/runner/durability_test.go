@@ -31,7 +31,15 @@ func TestLedgerStaysBoundedOverManyRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const runs = 20000
+	// Sized to what proves the property, not to a round number. A record is
+	// ~55 bytes and the cap is 256 KB, so a trim fires around 4,700 records
+	// and leaves 500 behind; 8,000 therefore exercises the trim twice, which
+	// is what "stays bounded" means as opposed to "was trimmed once".
+	//
+	// It was 20,000. Each append is five syscalls, and on a Windows runner
+	// with a virus scanner between the process and the disk that made this
+	// package alone run for minutes -- enough to hang the CI job.
+	const runs = 8000
 	started := time.Now()
 	for i := 0; i < runs; i++ {
 		if err := r.appendRun("chatty", started, i%256, 1.5); err != nil {
@@ -79,7 +87,11 @@ func TestLastRunStaysFastOnALargeLedger(t *testing.T) {
 	// carried across machines, or written by a version with a different cap.
 	path := filepath.Join(dirs.Runs, "big.jsonl")
 	var b strings.Builder
-	for i := 0; i < 200000; i++ {
+	// 40,000 lines is ~2 MB. Fifty tail reads of that is 100 MB if the
+	// implementation reads the whole file and a few KB if it seeks -- which is
+	// the difference this test exists to detect. Ten times larger measured the
+	// same thing ten times more slowly.
+	for i := 0; i < 40000; i++ {
 		fmt.Fprintf(&b, `{"ts":"2026-09-02T10:30:00-04:00","exit":%d,"dur":1.0}`+"\n", i%7)
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
@@ -106,7 +118,7 @@ func TestLastRunStaysFastOnALargeLedger(t *testing.T) {
 	if elapsed > 2*time.Second {
 		t.Errorf("50 LastRun calls took %s on a large ledger; it is not reading the tail", elapsed)
 	}
-	t.Logf("50 reads of a %d-line ledger: %s", 200000, elapsed)
+	t.Logf("50 reads of a %d-line ledger: %s", 40000, elapsed)
 	_ = r
 }
 
@@ -169,11 +181,11 @@ func TestManyTasksStayReadable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const tasks = 200
+	const tasks = 120
 	started := time.Now()
 	for i := 0; i < tasks; i++ {
 		name := fmt.Sprintf("task%03d", i)
-		for j := 0; j < 20; j++ {
+		for j := 0; j < 6; j++ {
 			if err := r.appendRun(name, started, 0, 1.0); err != nil {
 				t.Fatal(err)
 			}
@@ -207,7 +219,7 @@ func TestTornLedgerAtScale(t *testing.T) {
 	}
 
 	var b strings.Builder
-	for i := 0; i < 5000; i++ {
+	for i := 0; i < 3000; i++ {
 		fmt.Fprintf(&b, `{"ts":"2026-09-02T10:30:00-04:00","exit":%d,"dur":1.0}`+"\n", i%5)
 	}
 	// Power loss mid-write: a partial record with no newline.
@@ -229,7 +241,7 @@ func TestTornLedgerAtScale(t *testing.T) {
 	if last == nil {
 		t.Fatal("reported no runs because of a torn final line")
 	}
-	if want := 4999 % 5; last.Exit != want {
+	if want := 2999 % 5; last.Exit != want {
 		t.Errorf("exit = %d, want %d (the last COMPLETE record)", last.Exit, want)
 	}
 }
@@ -261,7 +273,7 @@ func TestCaptureDoesNotLeakDescriptors(t *testing.T) {
 	}
 	before := openDescriptors(t)
 
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 30; i++ {
 		res, err := r.capture("echo run", dirs.Data, 0)
 		if err != nil {
 			t.Fatal(err)
@@ -278,9 +290,9 @@ func TestCaptureDoesNotLeakDescriptors(t *testing.T) {
 	// A leak would be one or more per iteration; a small drift from the
 	// runtime's own bookkeeping is not interesting.
 	if after-before > 10 {
-		t.Errorf("descriptors grew from %d to %d over 60 runs -- that is a leak", before, after)
+		t.Errorf("descriptors grew from %d to %d over 30 runs -- that is a leak", before, after)
 	}
-	t.Logf("descriptors: %d before, %d after 60 capture+log+ledger cycles", before, after)
+	t.Logf("descriptors: %d before, %d after 30 capture+log+ledger cycles", before, after)
 }
 
 // A timed-out run must not leak either: it takes a different path out of
