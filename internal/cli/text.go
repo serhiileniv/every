@@ -8,9 +8,15 @@ package cli
 
 import "fmt"
 
-// Version, Tagline and Homepage identify the tool in `version` and `help`.
+// Version is stamped at build time by the release pipeline
+// (-X ...internal/cli.Version=X.Y.Z), so `every version` reports the tag that
+// produced the binary rather than a constant somebody forgot to bump. It is a
+// var, not a const, for exactly that reason -- the linker cannot rewrite a
+// const. The fallback value is what a plain `go build` reports.
+var Version = "0.4.0"
+
+// Tagline and Homepage identify the tool in `version` and `help`.
 const (
-	Version  = "0.4.0"
 	Tagline  = "humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)"
 	Homepage = "https://github.com/serhiileniv/every"
 )
