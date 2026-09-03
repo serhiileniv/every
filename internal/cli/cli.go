@@ -257,6 +257,16 @@ func (c *CLI) add(argv []string) error {
 		if errors.As(err, &ue) {
 			return err
 		}
+		// A schedule this platform cannot express is something the user typed,
+		// not something that went wrong: exit 64, and print the explanation on
+		// its own rather than buried behind "could not schedule <name>".
+		// A schedule this platform cannot express is something the user typed,
+		// not something that went wrong: exit 64, and print the explanation on
+		// its own rather than buried behind "could not schedule <name>".
+		var unsupported *backend.UnsupportedScheduleError
+		if errors.As(err, &unsupported) {
+			return &usageError{msg: unsupported.Error()}
+		}
 		return fmt.Errorf("could not schedule %s: %w", name, err)
 	}
 

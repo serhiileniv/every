@@ -79,9 +79,9 @@ func (w *TaskScheduler) currentUser() (string, error) {
 // fires at the wrong rate.
 func (w *TaskScheduler) ValidateSchedule(s *schedule.Schedule) error {
 	if s.Kind == schedule.Interval && s.Interval.Cmp(60) < 0 {
-		return fmt.Errorf(
+		return &UnsupportedScheduleError{Msg: fmt.Sprintf(
 			"Windows Task Scheduler supports interval schedules from 1m; %s needs a future resident scheduler",
-			s.HumanInterval())
+			s.HumanInterval())}
 	}
 	return nil
 }

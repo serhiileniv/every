@@ -42,6 +42,19 @@ type Backend interface {
 	Name() string
 }
 
+// UnsupportedScheduleError means the schedule is valid but this platform's
+// scheduler cannot express it -- Task Scheduler has no reliable sub-minute
+// repetition, for instance.
+//
+// It is a distinct type because it is a BAD-ARGUMENT error, not a failure: the
+// user typed something this machine cannot do, so it belongs on the exit-64
+// path with the other usage errors rather than the generic exit-1 one. The
+// Ruby got this by raising ArgumentError, which its CLI already rescued; a
+// plain Go error loses that distinction, and did.
+type UnsupportedScheduleError struct{ Msg string }
+
+func (e *UnsupportedScheduleError) Error() string { return e.Msg }
+
 // Config is what every backend needs to generate a unit.
 type Config struct {
 	Dirs paths.Dirs
