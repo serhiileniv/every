@@ -197,8 +197,26 @@ jobs:
             if ($errors.Count -gt 0) { Write-Host "== $f =="; $errors | Format-List; $failed = 1 }
           }
           exit $failed
-      - name: GoReleaser config
+      - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: check
+          install-only: true
+      - name: GoReleaser config
+        run: |
+          # `check` exits non-zero for deprecations as well as errors, and this
+          # config keeps one on purpose: `brews` rather than `homebrew_casks`,
+          # because Homebrew cannot upgrade a formula into a cask and doing so
+          # would strand existing users. See the comment in .goreleaser.yaml.
+          #
+          # So: a real error fails the job, a deprecation is reported and does
+          # not. goreleaser says "configuration is valid" whenever the only
+          # complaints are deprecations.
+          out=$(goreleaser check 2>&1) || true
+          echo "$out"
+          if echo "$out" | grep -q "configuration is valid"; then
+            echo "::notice::goreleaser config is valid (deprecations allowed, see .goreleaser.yaml)"
+          else
+            echo "::error::goreleaser check found a real configuration error"
+            exit 1
+          fi

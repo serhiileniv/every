@@ -85,6 +85,13 @@ release:
 
 # Auto-opens the tap update, which was a manual out-of-repo step on every
 # previous release. Needs HOMEBREW_TAP_GITHUB_TOKEN in the release workflow.
+#
+# `brews` is deprecated in favour of `homebrew_casks`, and is kept anyway:
+# Homebrew cannot upgrade a formula into a cask, so switching now would leave
+# everyone who ran `brew install every` stuck on 0.3.1 until they noticed and
+# reinstalled by hand. The entire point of this release is that upgrading is a
+# no-op. Revisit as a deliberate, announced tap migration -- not as a side
+# effect of a lint warning.
 brews:
   - name: every
     ids: [every]
