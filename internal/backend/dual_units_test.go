@@ -29,6 +29,12 @@ import (
 func TestAllUnitsMatchRubyAcrossTheGrammar(t *testing.T) {
 	ruby, root := rubyForUnits(t)
 
+	// Before the subprocess: it inherits this environment, and COMSPEC reaches
+	// the generated <Command>. Setting it afterwards let the Ruby render an
+	// absolute C:\Windows\system32\cmd.exe while the Go side rendered the
+	// bare name -- 292 mismatches that were purely the harness's ordering.
+	t.Setenv("COMSPEC", "cmd.exe")
+
 	specs := unitMatrix()
 	t.Logf("matrix: %d schedules x 4 unit renderings = %d comparisons",
 		len(specs), len(specs)*4)
@@ -44,7 +50,6 @@ func TestAllUnitsMatchRubyAcrossTheGrammar(t *testing.T) {
 	win := NewTaskScheduler(winCfg)
 	win.Now = func() time.Time { return dualClock(t) }
 	win.User = func() (string, error) { return `GOLDEN\goldenuser`, nil }
-	t.Setenv("COMSPEC", "cmd.exe")
 
 	var mismatches, compared int
 	report := func(kind, slug, got, want string) {
@@ -234,6 +239,9 @@ ENV["TZ"] = "America/New_York"
 ENV["EVERY_HOME"] = "/every-golden/home"
 ENV["USERNAME"]   = "goldenuser"
 ENV["USERDOMAIN"] = "GOLDEN"
+# Pinned here, not just on the Go side: COMSPEC reaches the generated
+# <Command>, and a real Windows box has it set to an absolute path.
+ENV["COMSPEC"] = "cmd.exe"
 $LOAD_PATH.unshift File.join(ARGV[0], "lib")
 require "every"
 require "json"
