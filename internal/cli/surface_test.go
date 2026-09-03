@@ -55,9 +55,9 @@ func TestCLISurfaceMatchesFrozen(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr
-			_ = cmd.Run()
+			runErr := cmd.Run()
 
-			gotExit := cmd.ProcessState.ExitCode()
+			gotExit := exitCodeOf(cmd, runErr)
 			gotOut := normalize(stdout.String(), home)
 			gotErr := normalize(stderr.String(), home)
 
@@ -81,14 +81,4 @@ func TestCLISurfaceMatchesFrozen(t *testing.T) {
 func normalize(s, home string) string {
 	s = strings.ReplaceAll(s, home, "$EVERY_HOME")
 	return strings.ReplaceAll(s, Version, "$VERSION")
-}
-
-func buildBinary(t *testing.T) string {
-	t.Helper()
-	bin := filepath.Join(t.TempDir(), "every")
-	out, err := exec.Command("go", "build", "-o", bin, "github.com/serhiileniv/every/cmd/every").CombinedOutput()
-	if err != nil {
-		t.Fatalf("building the binary: %v\n%s", err, out)
-	}
-	return bin
 }

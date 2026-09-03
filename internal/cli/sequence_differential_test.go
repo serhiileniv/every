@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -125,8 +126,8 @@ func runCLI(t *testing.T, bin, home string, argv []string) (string, string, int)
 	var out, errBuf strings.Builder
 	cmd.Stdout = &out
 	cmd.Stderr = &errBuf
-	_ = cmd.Run()
-	return out.String(), errBuf.String(), cmd.ProcessState.ExitCode()
+	runErr := cmd.Run()
+	return out.String(), errBuf.String(), exitCodeOf(cmd, runErr)
 }
 
 var (
@@ -160,6 +161,13 @@ func scrub(s, home string) string {
 
 func rubyTreeOrSkip(t *testing.T) string {
 	t.Helper()
+	// Windows cannot execute bin/every: it is a shebang script, and there is no
+	// interpreter association for an extensionless file. The comparison is
+	// meaningful on the platforms that can run both launchers, and those are
+	// where it runs.
+	if runtime.GOOS == "windows" {
+		t.Skip("bin/every is a shebang script; Windows cannot execute it")
+	}
 	if _, err := exec.LookPath("ruby"); err != nil {
 		t.Skip("no ruby on PATH; the Ruby tree is what this port replaces")
 	}

@@ -212,6 +212,6 @@ func runWithHome(t *testing.T, bin string, args ...string) (string, int) {
 	t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Env = append(os.Environ(), "EVERY_HOME="+t.TempDir(), "NO_COLOR=1")
-	out, _ := cmd.CombinedOutput()
-	return string(out), cmd.ProcessState.ExitCode()
+	out, err := cmd.CombinedOutput()
+	return string(out), exitCodeOf(cmd, err)
 }

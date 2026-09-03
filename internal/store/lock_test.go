@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -74,7 +75,12 @@ func TestConcurrentWritersAcrossProcesses(t *testing.T) {
 	dir := t.TempDir()
 
 	// A helper binary that takes the lock, does a read-modify-write, releases.
+	// The .exe matters on Windows -- without it anything resolving the path
+	// through PATHEXT will not find it.
 	helper := filepath.Join(t.TempDir(), "adder")
+	if runtime.GOOS == "windows" {
+		helper += ".exe"
+	}
 	if out, err := exec.Command("go", "build", "-o", helper,
 		"github.com/serhiileniv/every/internal/store/testdata/adder").CombinedOutput(); err != nil {
 		t.Skipf("cannot build the helper: %v\n%s", err, out)
