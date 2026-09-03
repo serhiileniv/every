@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/schedule"
 )
 
@@ -37,6 +38,10 @@ func (s *Systemd) ResourceExists(name string) bool {
 }
 
 func (s *Systemd) Write(name string, sched *schedule.Schedule) error {
+	// See internal/naming, and launchd.Write.
+	if err := naming.Validate(name); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(s.cfg.Dirs.Config, 0o755); err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"regexp"
 	"runtime"
 	"strings"
@@ -43,13 +44,39 @@ func (c *CLI) doctorPlatform(check func(string, bool, string)) {
 		check("systemd user session reachable", ok,
 			"no user systemd — is this a desktop/loginctl session?")
 
-		user := os.Getenv("USER")
+		// The username has to be resolved properly, not just read from $USER.
+		// The implementation being replaced used $USER alone, which is empty in
+		// plenty of real contexts -- a bare `docker exec`, some terminal
+		// emulators, anything not started by a login shell. The result was
+		// `loginctl show-user ""`, which always fails, so doctor reported a
+		// problem on a perfectly healthy machine and advised
+		// "loginctl enable-linger" with no name. Caught by running the suite
+		// against real systemd in a container.
+		user := currentUsername()
 		if user == "" {
-			user = os.Getenv("LOGNAME")
+			// Better to say nothing than to fail a check we cannot perform or
+			// give advice we cannot complete.
+			break
 		}
 		lingerOut, _ := exec.Command("loginctl", "show-user", user, "-p", "Linger").CombinedOutput()
 		check("lingering enabled (timers fire at boot / after logout)",
 			strings.Contains(string(lingerOut), "Linger=yes"),
 			fmt.Sprintf("run: loginctl enable-linger %s", user))
 	}
+}
+
+// currentUsername resolves who we are, falling back through the environment to
+// the passwd database. os/user works without cgo -- it parses /etc/passwd --
+// so this stays correct in a static binary.
+func currentUsername() string {
+	if u := os.Getenv("USER"); u != "" {
+		return u
+	}
+	if u := os.Getenv("LOGNAME"); u != "" {
+		return u
+	}
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	return ""
 }

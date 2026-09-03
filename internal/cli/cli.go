@@ -10,6 +10,7 @@ import (
 
 	"github.com/serhiileniv/every/internal/backend"
 	"github.com/serhiileniv/every/internal/migrate"
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/paths"
 	"github.com/serhiileniv/every/internal/runner"
 	"github.com/serhiileniv/every/internal/schedule"
@@ -406,6 +407,13 @@ func (c *CLI) resume(args []string) error {
 	task, ok := s.Tasks.Get(name)
 	if !ok {
 		return noInput("no task %s", rubyInspect(name))
+	}
+
+	// The name came from the store, which is a plain file anyone can edit --
+	// so it has not necessarily been through `add`'s sanitizer. Refuse before
+	// it reaches a scheduler rather than after, and say why.
+	if err := naming.Validate(name); err != nil {
+		return usagef("%v — remove it and re-add: every rm %s", err, rubyInspect(name))
 	}
 
 	sched, err := schedule.FromRecord(task.Schedule)

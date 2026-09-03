@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/schedule"
 	"github.com/serhiileniv/every/internal/store"
 )
@@ -45,7 +46,13 @@ func (c *CLI) seed(args []string) error {
 	if len(args) < 2 {
 		return invocationf("__seed <name> <command> [timeout-seconds]")
 	}
-	name, cmd := args[0], args[1]
+	// Sanitized and validated exactly as `add` does. A test hook that could
+	// write a name `add` would refuse would be a way to smuggle a path
+	// separator into the store, and from there into a plist path.
+	name, cmd := sanitize(args[0]), args[1]
+	if err := naming.Validate(name); err != nil {
+		return usagef("__seed: %v", err)
+	}
 
 	timeout := 0
 	if len(args) > 2 && args[2] != "" {

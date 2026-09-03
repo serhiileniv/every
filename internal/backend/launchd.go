@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/schedule"
 )
 
@@ -29,6 +30,11 @@ func (l *Launchd) ResourceExists(name string) bool {
 }
 
 func (l *Launchd) Write(name string, s *schedule.Schedule) error {
+	// The last gate before a name becomes a path. See internal/naming: the
+	// store is a plain file, so `add`'s sanitizer is not the only way in.
+	if err := naming.Validate(name); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(l.cfg.Dirs.Agents, 0o755); err != nil {
 		return err
 	}

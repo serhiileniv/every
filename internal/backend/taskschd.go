@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/schedule"
 )
 
@@ -86,6 +87,11 @@ func (w *TaskScheduler) ValidateSchedule(s *schedule.Schedule) error {
 }
 
 func (w *TaskScheduler) Write(name string, s *schedule.Schedule) error {
+	// See internal/naming, and launchd.Write. On Windows the name also reaches
+	// a task URI, where a separator would move the task into another folder.
+	if err := naming.Validate(name); err != nil {
+		return err
+	}
 	if err := w.ValidateSchedule(s); err != nil {
 		return err
 	}

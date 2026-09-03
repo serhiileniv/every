@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/serhiileniv/every/internal/backend"
+	"github.com/serhiileniv/every/internal/naming"
 	"github.com/serhiileniv/every/internal/paths"
 	"github.com/serhiileniv/every/internal/schedule"
 	"github.com/serhiileniv/every/internal/store"
@@ -69,6 +70,13 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 		task, _ := s.Tasks.Get(name)
 		if task.Paused {
 			// A paused task has no unit by design. Resuming rewrites it.
+			continue
+		}
+		// Never turn an unsafe name into a path, even to repair it. Reported
+		// rather than skipped silently, so the user learns the task exists and
+		// is unusable instead of wondering why it never fires.
+		if err := naming.Validate(name); err != nil {
+			res.Failed[name] = err
 			continue
 		}
 		repaired, err := repair(b, name, task)

@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -229,4 +232,95 @@ func TestTornLedgerAtScale(t *testing.T) {
 	if want := 4999 % 5; last.Exit != want {
 		t.Errorf("exit = %d, want %d (the last COMPLETE record)", last.Exit, want)
 	}
+}
+
+// File descriptors must not accumulate across runs.
+//
+// every's own process is short-lived, so a leak here is invisible in normal
+// use -- but `every run` executes inside a scheduler-spawned process that may
+// also be doing other work, and a capture that leaks a pipe pair per run would
+// exhaust the table on a machine that runs a task every minute. The pipe, the
+// log handle and the ledger handle are three separate chances to get it wrong.
+func TestCaptureDoesNotLeakDescriptors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fd counting is POSIX-specific")
+	}
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Warm up, so one-off allocations are not counted as growth.
+	for i := 0; i < 5; i++ {
+		if _, err := r.capture("echo warm", dirs.Data, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := openDescriptors(t)
+
+	for i := 0; i < 60; i++ {
+		res, err := r.capture("echo run", dirs.Data, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := r.appendLog("leaky", time.Now(), res.ExitCode, 0.1, res.Output); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.appendRun("leaky", time.Now(), res.ExitCode, 0.1); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	after := openDescriptors(t)
+	// A leak would be one or more per iteration; a small drift from the
+	// runtime's own bookkeeping is not interesting.
+	if after-before > 10 {
+		t.Errorf("descriptors grew from %d to %d over 60 runs -- that is a leak", before, after)
+	}
+	t.Logf("descriptors: %d before, %d after 60 capture+log+ledger cycles", before, after)
+}
+
+// A timed-out run must not leak either: it takes a different path out of
+// capture, past the kill and a Wait that returns an error.
+func TestTimeoutPathDoesNotLeakDescriptors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fd counting is POSIX-specific")
+	}
+	r, dirs := testRunner(t)
+
+	for i := 0; i < 3; i++ {
+		if _, err := r.capture("sleep 5", dirs.Data, 300*time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := openDescriptors(t)
+
+	for i := 0; i < 10; i++ {
+		res, err := r.capture("sleep 5", dirs.Data, 300*time.Millisecond)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.ExitCode != 124 {
+			t.Fatalf("exit = %d, want 124", res.ExitCode)
+		}
+	}
+
+	after := openDescriptors(t)
+	if after-before > 10 {
+		t.Errorf("descriptors grew from %d to %d over 10 timeouts -- the kill path leaks", before, after)
+	}
+	t.Logf("descriptors across the timeout path: %d before, %d after", before, after)
+}
+
+// openDescriptors counts this process's open files.
+func openDescriptors(t *testing.T) int {
+	t.Helper()
+	out, err := exec.Command("lsof", "-p", strconv.Itoa(os.Getpid())).Output()
+	if err != nil {
+		t.Skipf("lsof unavailable: %v", err)
+	}
+	return bytes.Count(out, []byte("\n"))
 }

@@ -148,3 +148,59 @@ func TestPlistAlwaysPinsDataDir(t *testing.T) {
 		}
 	}
 }
+
+// No backend may turn an unsafe name into a path, whatever the caller does.
+//
+// The CLI sanitizes names on the way in, but that is one door. The store is a
+// plain JSON file, and a task written by a hand-edit -- or by some future
+// version -- reaches Write unsanitized. This is the gate that holds when the
+// other one is bypassed.
+func TestBackendsRefuseUnsafeNames(t *testing.T) {
+	unsafe := []string{
+		"../evil",
+		"../../../../tmp/EVIL",
+		"a/b",
+		`a\b`,
+		"",
+		".",
+		"..",
+		"has space",
+	}
+
+	sched := loadSchedules(t)["15m"]
+	dir := t.TempDir()
+	cfg := goldenCfg()
+	cfg.Dirs.Agents = dir
+	cfg.Dirs.Config = dir
+	cfg.Dirs.Data = dir
+	cfg.Dirs.Logs = filepath.Join(dir, "logs")
+
+	backends := map[string]Backend{
+		"launchd": NewLaunchd(cfg),
+		"systemd": NewSystemd(cfg),
+		"taskschd": func() Backend {
+			w := NewTaskScheduler(cfg)
+			w.User = func() (string, error) { return "u", nil }
+			return w
+		}(),
+	}
+
+	for backendName, b := range backends {
+		for _, name := range unsafe {
+			t.Run(backendName+"/"+name, func(t *testing.T) {
+				if err := b.Write(name, sched); err == nil {
+					t.Errorf("%s.Write(%q) was allowed", backendName, name)
+				}
+			})
+		}
+	}
+
+	// Nothing may have escaped the directory under test.
+	escaped, err := filepath.Glob(filepath.Join(dir, "..", "*EVIL*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(escaped) > 0 {
+		t.Errorf("files written outside the target directory: %v", escaped)
+	}
+}

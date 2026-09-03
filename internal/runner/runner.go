@@ -153,15 +153,30 @@ func (r *Runner) capture(cmd, dir string, timeout time.Duration) (Result, error)
 	// The parent's copy must close or the read below never sees EOF.
 	pw.Close()
 
+	// The deadline kills the whole process GROUP, by negative pid. That is the
+	// only way to reach a shell's children, and it is also why the reaped flag
+	// matters: once Wait has collected the child, its pid -- and therefore the
+	// group id derived from it -- can be recycled by the kernel, and signalling
+	// it would hit an unrelated process group.
+	//
+	// So the check and the kill happen together under the mutex, and Wait sets
+	// reaped under the same one. A residual window remains where the timer wins
+	// the lock at the instant the command exits on its own; that is inherent to
+	// POSIX process handling without pidfd, and the implementation being
+	// replaced has the same window with no guard at all.
 	var (
 		mu       sync.Mutex
 		timedOut bool
+		reaped   bool
 	)
 	if timeout > 0 {
 		timer := time.AfterFunc(timeout, func() {
 			mu.Lock()
+			defer mu.Unlock()
+			if reaped {
+				return
+			}
 			timedOut = true
-			mu.Unlock()
 			terminate(c.Process)
 		})
 		defer timer.Stop()
@@ -186,6 +201,7 @@ func (r *Runner) capture(cmd, dir string, timeout time.Duration) (Result, error)
 	waitErr := c.Wait()
 
 	mu.Lock()
+	reaped = true
 	killed := timedOut
 	mu.Unlock()
 
