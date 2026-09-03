@@ -160,3 +160,53 @@ Dated log; append, don't rewrite.
   interactive user (and therefore run while that user is logged in). Native
   Windows defaults to `cmd.exe`; `EVERY_SHELL` can select PowerShell. WSL
   remains the Linux systemd path rather than being treated as native Windows.
+- **2026-09-03 — Rewritten in Go; supersedes "Pure stdlib, system-Ruby
+  compatible (2.6+)" (2026-07-24).** The original decision bought zero install
+  steps on macOS by depending on the Ruby already there. That trade stopped
+  paying: macOS ships 2.6 deprecated and slated for removal, Windows has no
+  Ruby at all (install.ps1 staged a whole runtime and generated a `.cmd` shim
+  purely to keep an interpreter path out of Task Scheduler XML), and Linux
+  distributions disagree about whether the package is `ruby`, `ruby3.1` or
+  `ruby-full`. Roughly half of `install.sh` existed to find an interpreter, and
+  both bugs shipped since 0.3.0 were distribution bugs rather than logic bugs.
+  A single static binary deletes the category. Specifics worth keeping:
+  - **The port is verified against the old implementation, not against a
+    description of it.** Generated plists, systemd units, task XML (including
+    the UTF-16LE bytes), `tasks.json` and the run ledger are compared byte for
+    byte against fixtures generated from the Ruby. A corpus of 1794 schedule
+    inputs is run through both parsers and compared on the decision, the exact
+    message and the serialized record. Whole command sequences are compared
+    step by step. The fixtures were generated while a working Ruby was still
+    on the machine, which is a one-time opportunity.
+  - **The syntax is frozen by a replayable table**, not by intent: 81 CLI
+    invocations captured as (stdout, stderr, exit code), plus the grammar. A
+    reworded message is a build failure.
+  - **The installed path does not change.** The binary lands exactly where the
+    old symlink pointed, so units already naming `<prefix>/bin/every` keep
+    resolving and an upgrade touches nothing.
+  - **Units are repaired automatically.** Pre-0.4 units invoke the tool through
+    an interpreter that is no longer present; left alone, every scheduled task
+    would silently stop. `migrate` regenerates each unit from the store and
+    rewrites it when it differs — idempotent by construction rather than by
+    pattern-matching the old format. It only ever rewrites a unit that already
+    exists: creating one for a task the user had unloaded would resurrect
+    something they deliberately stopped. The stamp that makes it free includes
+    the store's mtime, because otherwise a task added by an older `every` after
+    a rollback is never repaired.
+  - **`os.Args[0]`, never `os.Executable()`.** The latter resolves symlinks,
+    which would bake the target path into every unit and break the property
+    that "the symlink is the interface" (2026-07-25).
+  - **Task names are validated wherever they become a path.** `add` sanitizes
+    input, but the store is a plain file: a name containing `../` written
+    directly into it made `resume` open a plist outside the units directory, in
+    both implementations. Reading is deliberately not gated, so `list` still
+    shows such a task and `rm` still removes it.
+  - **Zero dependencies is enforced, not assumed.** CI fails if the module
+    graph gains an entry. File locking (`flock` / `LockFileEx`) is written by
+    hand rather than taking `golang.org/x/sys`, which would be the only one.
+  - **Two hidden subcommands ship** (`__parse`, `__seed`, and friends), absent
+    from help, the man page and completions. They exist so one end-to-end
+    script drives either implementation: asking whether the grammar accepts a
+    string should not require registering eleven real launchd agents, and
+    exercising the lock from five concurrent processes has no side-effect-free
+    path through the real CLI.

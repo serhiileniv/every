@@ -76,7 +76,7 @@ brew tap serhiileniv/tap && brew trust serhiileniv/tap && brew install every
 curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
 ```
 
-**Windows** — PowerShell and RubyInstaller:
+**Windows** — PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -94,9 +94,9 @@ minute; use WSL if you need the Unix backends or sub-minute intervals.
 curl -fsSL …/install.sh | sudo sh -s -- --prefix /usr/local
 
 # somewhere else, or a specific release
-curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version v0.3.1
+curl -fsSL …/install.sh | sh -s -- --prefix ~/opt --version 0.4.0
 
-# from a checkout (same flags)
+# from a checkout (same flags; builds what's in front of it if Go is present)
 git clone https://github.com/serhiileniv/every.git && ./every/install.sh
 
 # uninstall (tasks and logs are kept; it won't strand a live timer)
@@ -108,9 +108,10 @@ across an upgrade — units point at `<prefix>/bin/every`, which stays put.
 
 </details>
 
-Zero dependencies: `every` needs only a Ruby 2.6+ (already inside macOS; `apt
-install ruby` and friends on Linux). Both installs set up `man every` and tab
-completion for bash, zsh, and fish.
+Zero dependencies, literally: `every` is a single static binary with nothing to
+install alongside it — no runtime, no interpreter, no shared libraries. The
+installer verifies the download against the release checksums, and sets up
+`man every` and tab completion for bash, zsh, and fish.
 
 ## Schedules
 
@@ -180,7 +181,7 @@ Follows `sysexits.h`, so scripts can branch on `$?`:
   runs notify through `notify-send`. Field reports very welcome — the units are
   tested, months of real desktop uptime aren't.
 - **Windows:** native Windows Task Scheduler tasks, same commands; tasks live
-  under the `\\every\\` task path and invoke Ruby through a small per-task
+  under the `\\every\\` task path and invoke the binary through the command
   wrapper. Calendar tasks use `StartWhenAvailable`; interval tasks require at
   least one minute. Tasks use the current interactive user by default, so they
   run while that user is logged in. The default shell is `cmd.exe` (set
