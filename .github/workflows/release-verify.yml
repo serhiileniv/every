@@ -35,7 +35,7 @@ jobs:
           "$RUNNER_TEMP/every/bin/every" version
       # Drive the INSTALLED tree, not the checkout.
       - name: End-to-end against the installed release (real launchd)
-        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/lib/every" "$RUNNER_TEMP/every-home"
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/bin/every" "$RUNNER_TEMP/every-home"
 
   linux:
     runs-on: ubuntu-latest
@@ -55,15 +55,12 @@ jobs:
           sudo loginctl enable-linger "$USER" || true
           systemctl --user show-environment || echo "no user bus — lifecycle will skip"
       - name: End-to-end against the installed release (real systemd)
-        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/lib/every" "$RUNNER_TEMP/every-home"
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every/bin/every" "$RUNNER_TEMP/every-home"
 
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
       # The download path, which the `test` workflow never exercises: it
       # installs from the checkout, so release resolution and the published
       # tarball go unverified on the one platform that most needed checking.
@@ -73,7 +70,7 @@ jobs:
           $prefix = Join-Path $env:RUNNER_TEMP "every"
           if ("${{ inputs.tag }}") { .\install.ps1 -Prefix $prefix -Version "${{ inputs.tag }}" }
           else { .\install.ps1 -Prefix $prefix }
-          & (Join-Path $prefix "bin\every.cmd") version
+          & (Join-Path $prefix "bin\every.exe") version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: End-to-end against the installed release (real Task Scheduler)
         shell: pwsh

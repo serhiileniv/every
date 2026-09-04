@@ -1,0 +1,338 @@
+package runner
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/serhiileniv/every/internal/store"
+)
+
+// The failures that only appear after months of running.
+//
+// Everything else in this suite asks whether a command works once. These ask
+// whether it still works on the hundred-thousandth run -- which is the only
+// kind of failure a scheduler can have that the user discovers by finding out
+// their backups stopped, rather than by seeing an error.
+
+// A task firing every minute for a year appends half a million ledger records.
+// The file must stay bounded, and `list` must stay fast, or the tool degrades
+// linearly over months in a way nobody attributes to the tool.
+func TestLedgerStaysBoundedOverManyRuns(t *testing.T) {
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Sized to what proves the property, not to a round number. A record is
+	// ~55 bytes and the cap is 256 KB, so a trim fires around 4,700 records
+	// and leaves 500 behind; 8,000 therefore exercises the trim twice, which
+	// is what "stays bounded" means as opposed to "was trimmed once".
+	//
+	// It was 20,000. Each append is five syscalls, and on a Windows runner
+	// with a virus scanner between the process and the disk that made this
+	// package alone run for minutes -- enough to hang the CI job.
+	const runs = 8000
+	started := time.Now()
+	for i := 0; i < runs; i++ {
+		if err := r.appendRun("chatty", started, i%256, 1.5); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := filepath.Join(dirs.Runs, "chatty.jsonl")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > runTrimBytes*2 {
+		t.Errorf("ledger grew to %d bytes after %d runs; the cap is %d",
+			info.Size(), runs, runTrimBytes)
+	}
+
+	// Bounded is worthless if it stops being readable.
+	s, err := store.Load(dirs.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last, err := s.LastRun("chatty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last == nil {
+		t.Fatal("the ledger became unreadable after trimming")
+	}
+	if want := (runs - 1) % 256; last.Exit != want {
+		t.Errorf("last exit = %d, want %d -- trimming lost the newest record", last.Exit, want)
+	}
+}
+
+// LastRun must not get slower as history accumulates. It reads the tail, so a
+// large ledger and a small one should cost about the same; a naive
+// read-everything implementation would show up here as a cliff.
+func TestLastRunStaysFastOnALargeLedger(t *testing.T) {
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Bypass trimming to build a genuinely large file: a store that has been
+	// carried across machines, or written by a version with a different cap.
+	path := filepath.Join(dirs.Runs, "big.jsonl")
+	var b strings.Builder
+	// 40,000 lines is ~2 MB. Fifty tail reads of that is 100 MB if the
+	// implementation reads the whole file and a few KB if it seeks -- which is
+	// the difference this test exists to detect. Ten times larger measured the
+	// same thing ten times more slowly.
+	for i := 0; i < 40000; i++ {
+		fmt.Fprintf(&b, `{"ts":"2026-09-02T10:30:00-04:00","exit":%d,"dur":1.0}`+"\n", i%7)
+	}
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, _ := os.Stat(path)
+	t.Logf("ledger under test: %.1f MB", float64(info.Size())/(1<<20))
+
+	s, err := store.Load(dirs.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	for i := 0; i < 50; i++ {
+		if _, err := s.LastRun("big"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	elapsed := time.Since(start)
+
+	// Generous: the point is to catch a read-the-whole-file regression, which
+	// would be seconds per call on a file this size, not milliseconds.
+	if elapsed > 2*time.Second {
+		t.Errorf("50 LastRun calls took %s on a large ledger; it is not reading the tail", elapsed)
+	}
+	t.Logf("50 reads of a %d-line ledger: %s", 40000, elapsed)
+	_ = r
+}
+
+// The detailed log rotates at a size cap. Without it a chatty task fills the
+// disk, which is a failure that takes out more than every.
+func TestLogRotatesAndStaysBounded(t *testing.T) {
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(dirs.Logs, "loud.log")
+	// Just over the cap, so the next append rotates.
+	if err := os.WriteFile(path, bytes.Repeat([]byte("x"), maxLogBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.appendLog("loud", time.Now(), 0, 0.5, []byte("fresh\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > 1024 {
+		t.Errorf("log is %d bytes after rotation; it should hold only the new entry", info.Size())
+	}
+	if _, err := os.Stat(path + ".old"); err != nil {
+		t.Errorf("the rotated log was not kept: %v", err)
+	}
+
+	// Rotating twice must not accumulate generations -- one .old, forever.
+	if err := os.WriteFile(path, bytes.Repeat([]byte("y"), maxLogBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.appendLog("loud", time.Now(), 0, 0.5, []byte("fresher\n")); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dirs.Logs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generations := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "loud.log") {
+			generations++
+		}
+	}
+	if generations != 2 {
+		t.Errorf("found %d log generations, want exactly 2 (current + .old)", generations)
+	}
+}
+
+// Many tasks, each with history: `list` reads every ledger, so the cost is
+// per-task and this is where it would show.
+func TestManyTasksStayReadable(t *testing.T) {
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	const tasks = 120
+	started := time.Now()
+	for i := 0; i < tasks; i++ {
+		name := fmt.Sprintf("task%03d", i)
+		for j := 0; j < 6; j++ {
+			if err := r.appendRun(name, started, 0, 1.0); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	s, err := store.Load(dirs.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	for i := 0; i < tasks; i++ {
+		last, err := s.LastRun(fmt.Sprintf("task%03d", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if last == nil {
+			t.Fatalf("task%03d lost its history", i)
+		}
+	}
+	t.Logf("read the last run of %d tasks in %s", tasks, time.Since(start))
+}
+
+// A ledger whose final line is torn -- the machine lost power mid-append --
+// must still report the previous run rather than "never ran". This is the
+// scenario the backwards scan exists for, at realistic scale.
+func TestTornLedgerAtScale(t *testing.T) {
+	_, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var b strings.Builder
+	for i := 0; i < 3000; i++ {
+		fmt.Fprintf(&b, `{"ts":"2026-09-02T10:30:00-04:00","exit":%d,"dur":1.0}`+"\n", i%5)
+	}
+	// Power loss mid-write: a partial record with no newline.
+	b.WriteString(`{"ts":"2026-09-02T11:00:00-04:00","ex`)
+
+	path := filepath.Join(dirs.Runs, "torn.jsonl")
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := store.Load(dirs.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last, err := s.LastRun("torn")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last == nil {
+		t.Fatal("reported no runs because of a torn final line")
+	}
+	if want := 2999 % 5; last.Exit != want {
+		t.Errorf("exit = %d, want %d (the last COMPLETE record)", last.Exit, want)
+	}
+}
+
+// File descriptors must not accumulate across runs.
+//
+// every's own process is short-lived, so a leak here is invisible in normal
+// use -- but `every run` executes inside a scheduler-spawned process that may
+// also be doing other work, and a capture that leaks a pipe pair per run would
+// exhaust the table on a machine that runs a task every minute. The pipe, the
+// log handle and the ledger handle are three separate chances to get it wrong.
+func TestCaptureDoesNotLeakDescriptors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fd counting is POSIX-specific")
+	}
+	r, dirs := testRunner(t)
+	if err := os.MkdirAll(dirs.Logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dirs.Runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Warm up, so one-off allocations are not counted as growth.
+	for i := 0; i < 5; i++ {
+		if _, err := r.capture("echo warm", dirs.Data, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := openDescriptors(t)
+
+	for i := 0; i < 30; i++ {
+		res, err := r.capture("echo run", dirs.Data, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := r.appendLog("leaky", time.Now(), res.ExitCode, 0.1, res.Output); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.appendRun("leaky", time.Now(), res.ExitCode, 0.1); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	after := openDescriptors(t)
+	// A leak would be one or more per iteration; a small drift from the
+	// runtime's own bookkeeping is not interesting.
+	if after-before > 10 {
+		t.Errorf("descriptors grew from %d to %d over 30 runs -- that is a leak", before, after)
+	}
+	t.Logf("descriptors: %d before, %d after 30 capture+log+ledger cycles", before, after)
+}
+
+// A timed-out run must not leak either: it takes a different path out of
+// capture, past the kill and a Wait that returns an error.
+func TestTimeoutPathDoesNotLeakDescriptors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fd counting is POSIX-specific")
+	}
+	r, dirs := testRunner(t)
+
+	for i := 0; i < 3; i++ {
+		if _, err := r.capture("sleep 5", dirs.Data, 300*time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := openDescriptors(t)
+
+	for i := 0; i < 10; i++ {
+		res, err := r.capture("sleep 5", dirs.Data, 300*time.Millisecond)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.ExitCode != 124 {
+			t.Fatalf("exit = %d, want 124", res.ExitCode)
+		}
+	}
+
+	after := openDescriptors(t)
+	if after-before > 10 {
+		t.Errorf("descriptors grew from %d to %d over 10 timeouts -- the kill path leaks", before, after)
+	}
+	t.Logf("descriptors across the timeout path: %d before, %d after", before, after)
+}
+
+// openDescriptors counts this process's open files.
+func openDescriptors(t *testing.T) int {
+	t.Helper()
+	out, err := exec.Command("lsof", "-p", strconv.Itoa(os.Getpid())).Output()
+	if err != nil {
+		t.Skipf("lsof unavailable: %v", err)
+	}
+	return bytes.Count(out, []byte("\n"))
+}

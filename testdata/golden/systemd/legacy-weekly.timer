@@ -1,0 +1,10 @@
+[Unit]
+Description=every timer legacy-weekly
+
+[Timer]
+AccuracySec=1s
+OnCalendar=Wed *-*-* 18:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

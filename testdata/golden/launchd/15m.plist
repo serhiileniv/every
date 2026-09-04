@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.every.15m</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__RUBY__</string>
+    <string>__LAUNCHER__</string>
+    <string>run</string>
+    <string>15m</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>EVERY_HOME</key><string>/every-golden/home</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/every-golden/home/logs/_agent.log</string>
+  <key>StandardErrorPath</key>
+  <string>/every-golden/home/logs/_agent.log</string>
+</dict>
+</plist>

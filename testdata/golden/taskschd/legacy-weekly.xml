@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Author>GOLDEN\goldenuser</Author>
+    <URI>\every\legacy-weekly</URI>
+  </RegistrationInfo>
+  <Triggers>
+<CalendarTrigger>
+  <StartBoundary>2026-09-02T18:30:00</StartBoundary>
+  <Enabled>true</Enabled>
+<ScheduleByWeek>
+  <DaysOfWeek><Wednesday/></DaysOfWeek>
+  <WeeksInterval>1</WeeksInterval>
+</ScheduleByWeek>
+
+</CalendarTrigger>
+
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>GOLDEN\goldenuser</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <Arguments>/d /s /c set "EVERY_HOME=/every-golden/home" &amp;&amp; call "__LAUNCHER__.cmd" run "legacy-weekly"</Arguments>
+    </Exec>
+  </Actions>
+</Task>

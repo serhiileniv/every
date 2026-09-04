@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.4.0 — unreleased
+
+**No runtime required.** `every` is now a single static binary. Nothing to
+install alongside it, nothing to keep in sync, and the *dependencies: zero*
+badge is finally literal.
+
+The reason is distribution, not speed. macOS ships Ruby 2.6 deprecated and
+slated for removal, Windows has none at all, and Linux distributions disagree
+about what the package is called. Roughly half the installer existed to find an
+interpreter, and the last two shipped bugs — `every add` on Windows, and the
+wrapper load path — were both distribution bugs rather than logic bugs.
+
+Behavior is unchanged on purpose. Same commands, same flags, same schedule
+grammar, same on-disk format, same generated scheduler units. The port is
+verified against the previous implementation rather than against a description
+of it: a generated corpus of 1794 schedule inputs is run through both parsers
+and compared on the accept/reject decision, the exact rejection message and the
+serialized record; whole command sequences are compared step by step; and the
+generated plists, units and task XML are compared byte for byte.
+
+### Upgrading
+
+Nothing to do. Existing tasks are repaired automatically the first time you run
+any command — units written before 0.4 invoke the tool through an interpreter,
+which is no longer there, so they are rewritten and re-registered. `every list`
+says so in one line when it happens.
+
+Rolling back works too: a 0.3.x `every` reads a store written by 0.4, and keeps
+firing tasks whose units 0.4 rewrote.
+
+### Fixed
+
+- A task name written directly into `tasks.json` could escape the units
+  directory: `every resume` on a name containing `../` opened a plist outside
+  `~/Library/LaunchAgents`. Names are now validated wherever they become a
+  path. Present in every earlier version.
+- `doctor` reported a problem on healthy Linux machines whenever `$USER` was
+  unset — a bare `docker exec`, some terminals, anything not started by a login
+  shell — and then advised `loginctl enable-linger` with no name.
+- The installer told macOS users "systemd not found", on the platform where
+  launchd is the backend and systemd never will be.
+- A timed-out run could signal a process group after the child had been reaped
+  and its pid possibly recycled.
+
+### Changed
+
+- `install.sh` downloads one binary and verifies it against the release
+  checksums, rather than copying a source tree. It also refuses to uninstall
+  while launchd tasks are live, which it previously only checked for systemd.
+- `install.ps1` drops the generated `every.cmd` shim; with no interpreter to
+  pin, Task Scheduler invokes the binary directly.
+- Releases are built and published by GoReleaser, which also opens the Homebrew
+  tap pull request that used to be a manual step.
+
 ## 0.3.1 — 2026-09-01
 
 A Windows fix that 0.3.0 needed badly, and the tests that would have caught it.

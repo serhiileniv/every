@@ -14,3 +14,9 @@ man/*          text eol=lf
 
 *.png binary
 *.gif binary
+
+# Golden fixtures are compared byte-for-byte, so nothing may rewrite them.
+# `* text=auto` above would CRLF-munge them on a Windows checkout -- and the
+# Task Scheduler fixtures are UTF-16LE, where a line-ending rewrite corrupts
+# the encoding outright rather than just changing bytes.
+testdata/golden/** binary

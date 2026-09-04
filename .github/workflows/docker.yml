@@ -2,7 +2,7 @@ name: docker
 
 on:
   push:
-    branches: [main]
+    branches: [main, go]
   pull_request:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Build a pinned Ruby + systemd-analyze image (see test/docker/Dockerfile).
+      # Build a pinned Go + systemd-analyze image (see test/docker/Dockerfile).
       - name: Build systemd image
         run: docker build -t every-systemd -f test/docker/Dockerfile test/docker
       # Run the OnCalendar validation inside the container, against a real
@@ -18,4 +18,4 @@ jobs:
       - name: Validate OnCalendar expressions
         run: |
           docker run --rm -v "$PWD:/app:ro" -w /app every-systemd \
-            ruby test/systemd_calendar_check.rb
+            go test ./internal/backend/ -run OnCalendar -v

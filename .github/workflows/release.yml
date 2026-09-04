@@ -1,0 +1,82 @@
+# Cuts a release from a tag: builds every target, publishes the archives and
+# checksums, and opens the Homebrew tap pull request.
+#
+# Deliberately gated on the full test matrix passing first. 0.3.0 shipped a
+# Windows backend that could not register a single task, so "the tag exists" is
+# not a reason to publish -- "the Windows end-to-end went green" is.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # Re-run the things that would make a release wrong, on the tagged commit
+  # rather than on whatever was last pushed to a branch.
+  verify:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - run: go vet ./...
+      - run: go test ./... -count=1
+
+  e2e:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - run: go build -o "$RUNNER_TEMP/every" ./cmd/every
+      - name: Enable a systemd user session
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo loginctl enable-linger "$USER" || true
+      - name: End-to-end against the real scheduler
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every" "$RUNNER_TEMP/every-home"
+
+  windows-e2e:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - shell: pwsh
+        run: .\install.ps1 -Prefix "$env:RUNNER_TEMP\every"
+      - name: End-to-end (real Task Scheduler)
+        shell: pwsh
+        run: pwsh -File test/e2e/windows.ps1 -Prefix "$env:RUNNER_TEMP\every"
+
+  release:
+    needs: [verify, e2e, windows-e2e]
+    runs-on: macos-latest   # lipo, for the universal macOS binary
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # goreleaser builds the changelog from history
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A separate token: the default one cannot push to another repo, and
+          # the tap lives outside this one.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

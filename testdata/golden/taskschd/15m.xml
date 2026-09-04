@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Author>GOLDEN\goldenuser</Author>
+    <URI>\every\15m</URI>
+  </RegistrationInfo>
+  <Triggers>
+<TimeTrigger>
+  <StartBoundary>2026-09-02T10:45:00</StartBoundary>
+  <Enabled>true</Enabled>
+  <Repetition>
+    <Interval>PT900S</Interval>
+    <StopAtDurationEnd>false</StopAtDurationEnd>
+  </Repetition>
+</TimeTrigger>
+
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>GOLDEN\goldenuser</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <Arguments>/d /s /c set "EVERY_HOME=/every-golden/home" &amp;&amp; call "__LAUNCHER__.cmd" run "15m"</Arguments>
+    </Exec>
+  </Actions>
+</Task>

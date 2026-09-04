@@ -17,7 +17,14 @@ set -u
 REPO="${1:?usage: unix.sh <repo-root> <every-home>}"
 EVERY_HOME="${2:?usage: unix.sh <repo-root> <every-home>}"
 export EVERY_HOME
-EVERY="$REPO/bin/every"
+# $1 is either a repo root (the Ruby tree, which keeps its launcher at
+# bin/every) or a path to the every binary itself. Accepting both lets one
+# script drive either implementation during the port.
+if [ -d "$REPO" ]; then
+  EVERY="$REPO/bin/every"
+else
+  EVERY="$REPO"
+fi
 PROBE="e2eprobe"
 
 pass=0; fail=0; skip=0
@@ -44,6 +51,23 @@ wait_until() { # wait_until <tries> <shell snippet>
   return 1
 }
 
+# JSON validation without depending on the implementation under test. python3
+# is present on every platform this runs on (macOS, ubuntu CI); ruby is a
+# fallback for a box that has it and not python.
+json_stdin_ok() {
+  if command -v python3 >/dev/null 2>&1; then python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1
+  elif command -v ruby >/dev/null 2>&1; then ruby -rjson -e 'JSON.parse($stdin.read)' >/dev/null 2>&1
+  else cat >/dev/null; return 0; fi
+}
+json_ok() { json_stdin_ok < "$1"; }
+json_lines_ok() {
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    printf '%s' "$line" | json_stdin_ok || return 1
+  done < "$1"
+  return 0
+}
+
 OS=$(uname -s)
 case "$OS" in
   Darwin) BACKEND="launchd"; AGENTS="$HOME/Library/LaunchAgents" ;;
@@ -66,14 +90,7 @@ printf 'scheduler  : %s\n' "$([ "$SCHED_OK" -eq 1 ] && echo available || echo 'N
 before_agents=$(ls "$AGENTS" 2>/dev/null | sort)
 
 mk() { # mk <name> <cmd> [timeout] -- store entry without touching the scheduler
-  ruby -I"$REPO/lib" -e '
-    require "every"
-    s = Every::Store.load
-    a = {"cmd" => ARGV[1], "quiet" => true,
-         "schedule" => Every::Schedule.parse(["15m"]).to_h}
-    a["timeout"] = ARGV[2].to_i if ARGV[2] && ARGV[2] != ""
-    s.add(ARGV[0], a)
-  ' "$1" "$2" "${3:-}"
+  "$EVERY" __seed "$1" "$2" "${3:-}"
 }
 
 # ------------------------------------------------------------------- grammar
@@ -81,12 +98,12 @@ sec "1. schedule grammar (documented forms)"
 for s in "90s" "15m" "2h" "hourly" "day 9am" "day 17:30" "day 9am,6pm" \
          "weekdays 9:30" "weekends 11am" "monday 10:00" "monday,thursday 6pm"; do
   # shellcheck disable=SC2086
-  if ruby -I"$REPO/lib" -e 'require "every"; Every::Schedule.parse(ARGV)' $s 2>/dev/null
+  if "$EVERY" __parse $s 2>/dev/null
   then ok "parses: $s"; else bad "parses: $s" "Schedule.parse rejected a documented form"; fi
 done
 for s in "banana" "0m" "25h99" "1d" "mon 8am" "day" "5s"; do
   # shellcheck disable=SC2086
-  if ruby -I"$REPO/lib" -e 'require "every"; Every::Schedule.parse(ARGV)' $s 2>/dev/null
+  if "$EVERY" __parse $s 2>/dev/null
   then bad "rejects: $s" "accepted an invalid schedule"; else ok "rejects: $s"; fi
 done
 
@@ -110,7 +127,7 @@ has "non-ASCII output survives" "$("$EVERY" log uni 2>&1)" "héllo"
 
 mk failing 'exit 42'
 "$EVERY" run failing >/dev/null 2>&1
-code=$(ruby -I"$REPO/lib" -e 'require "every"; puts Every::Store.load.last_run("failing")["exit"]')
+code=$("$EVERY" __last-exit failing)
 same "non-zero exit recorded in the ledger" 42 "$code"
 
 mk onerr 'echo to-stderr >&2'
@@ -129,7 +146,7 @@ has "timeout marker in the log" "$("$EVERY" log slow 2>&1)" "killed after"
 sec "3. list, --json and doctor"
 has "list renders" "$("$EVERY" list 2>&1)" "plain"
 j=$("$EVERY" list --json 2>&1)
-if printf '%s' "$j" | ruby -rjson -e 'JSON.parse($stdin.read)' >/dev/null 2>&1
+if printf '%s' "$j" | json_stdin_ok
 then ok "list --json parses"; else bad "list --json" "did not parse"; fi
 for k in name schedule command status; do has "json has \"$k\"" "$j" "\"$k\""; done
 # doctor exists to notice exactly this: tasks in the store with no scheduler
@@ -147,28 +164,28 @@ sec "4. error paths and exit codes"
 "$EVERY" rm nosuch   >/dev/null 2>&1; same "rm unknown exits 66" 66 $?
 "$EVERY" pause nosuch >/dev/null 2>&1; same "pause unknown exits 66" 66 $?
 e=$("$EVERY" banana -- echo hi 2>&1); same "bad schedule exits 64" 64 $?
+# Language-neutral: a Ruby backtrace names a .rb file, a Go panic names a .go
+# file and a goroutine. Neither may reach a user.
 hasnt "bad schedule prints no backtrace" "$e" ".rb:"
+hasnt "bad schedule prints no stack trace" "$e" "goroutine"
 "$EVERY" run >/dev/null 2>&1; same "run without a name exits 64" 64 $?
 
 # --------------------------------------------------------------- persistence
 sec "5. store and ledger durability"
-n=$(ruby -I"$REPO/lib" -e 'require "every"; puts Every::Store.load.tasks.size')
+n=$("$EVERY" __count)
 if [ "$n" -ge 7 ]; then ok "all task writes survived ($n present)"
 else bad "store writes" "expected >=7, got $n"; fi
 for i in 1 2 3 4 5; do
-  ( ruby -I"$REPO/lib" -e '
-      require "every"
-      lock = Every::Store.acquire_lock
-      Every::Store.load.add("conc"+ARGV[0], {"cmd"=>"true","quiet"=>true,
-        "schedule"=>Every::Schedule.parse(["15m"]).to_h})
-      lock.close' "$i" ) &
+  ( "$EVERY" __seed "conc$i" true ) &
 done
 wait
-c=$(ruby -I"$REPO/lib" -e 'require "every"; puts Every::Store.load.tasks.keys.grep(/^conc/).size')
+c=$("$EVERY" list --json | tr ',' '\n' | grep -c '"name":"conc')
 same "5 concurrent adds all survive (flock)" 5 "$c"
-if ruby -rjson -e 'JSON.parse(File.read(ARGV[0]))' "$EVERY_HOME/tasks.json" >/dev/null 2>&1
+# An INDEPENDENT parser on purpose: asking every to read back what every
+# wrote would pass even if both sides agreed on something malformed.
+if json_ok "$EVERY_HOME/tasks.json"
 then ok "tasks.json still valid JSON"; else bad "tasks.json" "corrupted by concurrent writes"; fi
-if ruby -rjson -e 'File.readlines(ARGV[0]).each { |l| JSON.parse(l) }' "$EVERY_HOME/runs/plain.jsonl" >/dev/null 2>&1
+if json_lines_ok "$EVERY_HOME/runs/plain.jsonl"
 then ok "run ledger lines are valid JSON"; else bad "ledger JSON" "a line failed to parse"; fi
 
 # ----------------------------------------------------------- real scheduler

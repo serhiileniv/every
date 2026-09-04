@@ -1,0 +1,115 @@
+# Release automation for every.
+#
+# Replaces a manual, error-prone sequence: tag, build six binaries by hand,
+# upload them, then remember to open a pull request against the Homebrew tap.
+# 0.3.0 shipped a Windows backend that could not register a single task, so
+# fewer hand-steps between "tested" and "published" is the point.
+#
+#   goreleaser release --clean          (in CI, on a tag)
+#   goreleaser release --snapshot --clean --skip=publish   (locally, to check)
+version: 2
+
+project_name: every
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - id: every
+    main: ./cmd/every
+    binary: every
+    # CGO off everywhere: the whole point of the rewrite is one file that runs
+    # with no runtime and no libc to match.
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      # -s -w drop the symbol table and DWARF: ~30% smaller, and nothing here
+      # ships a debugger. The version is stamped so `every version` matches the
+      # tag rather than a constant someone forgot to bump.
+      - -s -w
+      - -X github.com/serhiileniv/every/internal/cli.Version={{ .Version }}
+
+# One universal binary for macOS, so the Homebrew formula and the installer do
+# not have to care which Mac they are on.
+universal_binaries:
+  - id: every
+    replace: true
+
+archives:
+  - id: every
+    ids: [every]
+    # Pinned rather than left to the default, because install.sh and
+    # install.ps1 construct these names to build a download URL. Changing this
+    # silently breaks both installers.
+    name_template: "every_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - man/every.1
+      - completions/*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^test:"
+      - "^docs:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: auto
+  header: |
+    ## every {{ .Version }}
+
+    Install:
+
+        curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
+
+# Auto-opens the tap update, which was a manual out-of-repo step on every
+# previous release. Needs HOMEBREW_TAP_GITHUB_TOKEN in the release workflow.
+#
+# `brews` is deprecated in favour of `homebrew_casks`, and is kept anyway:
+# Homebrew cannot upgrade a formula into a cask, so switching now would leave
+# everyone who ran `brew install every` stuck on 0.3.1 until they noticed and
+# reinstalled by hand. The entire point of this release is that upgrading is a
+# no-op. Revisit as a deliberate, announced tap migration -- not as a side
+# effect of a lint warning.
+brews:
+  - name: every
+    ids: [every]
+    repository:
+      owner: serhiileniv
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/serhiileniv/every
+    description: Schedule anything on your computer, humanely — and know it ran
+    license: MIT
+    # The binary lands at the same bin/every path the Ruby formula used, so
+    # plists already pointing there keep resolving across the upgrade.
+    install: |
+      bin.install "every"
+      man1.install "man/every.1"
+      bash_completion.install "completions/every.bash" => "every"
+      zsh_completion.install "completions/_every"
+      fish_completion.install "completions/every.fish"
+    test: |
+      assert_match "every #{version}", shell_output("#{bin}/every version")

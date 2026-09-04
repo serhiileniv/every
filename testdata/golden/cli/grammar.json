@@ -1,0 +1,646 @@
+[
+  {
+    "tokens": [
+      "15m"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "15m",
+      "kind": "interval",
+      "interval": 900
+    }
+  },
+  {
+    "tokens": [
+      "90s"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "90s",
+      "kind": "interval",
+      "interval": 90
+    }
+  },
+  {
+    "tokens": [
+      "2h"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "2h",
+      "kind": "interval",
+      "interval": 7200
+    }
+  },
+  {
+    "tokens": [
+      "10s"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "10s",
+      "kind": "interval",
+      "interval": 10
+    }
+  },
+  {
+    "tokens": [
+      "hourly"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "hourly",
+      "kind": "interval",
+      "interval": 3600
+    }
+  },
+  {
+    "tokens": [
+      "3600s"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "3600s",
+      "kind": "interval",
+      "interval": 3600
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 9am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "17:30"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 17:30",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 17,
+          "minute": 30
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "9am,6pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 9am,6pm",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0
+        },
+        {
+          "hour": 18,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "12am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 12am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 0,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "12pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 12pm",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 12,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "9"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 9",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "09:05"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 09:05",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 5
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "daily",
+      "7am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "daily 7am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 7,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "weekdays",
+      "9:30"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "weekdays 9:30",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 30,
+          "weekday": 1
+        },
+        {
+          "hour": 9,
+          "minute": 30,
+          "weekday": 2
+        },
+        {
+          "hour": 9,
+          "minute": 30,
+          "weekday": 3
+        },
+        {
+          "hour": 9,
+          "minute": 30,
+          "weekday": 4
+        },
+        {
+          "hour": 9,
+          "minute": 30,
+          "weekday": 5
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "weekends",
+      "11am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "weekends 11am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 11,
+          "minute": 0,
+          "weekday": 0
+        },
+        {
+          "hour": 11,
+          "minute": 0,
+          "weekday": 6
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monday",
+      "10:00"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monday 10:00",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 10,
+          "minute": 0,
+          "weekday": 1
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "sunday",
+      "12am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "sunday 12am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 0,
+          "minute": 0,
+          "weekday": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "saturday",
+      "11pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "saturday 11pm",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 23,
+          "minute": 0,
+          "weekday": 6
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monday,thursday",
+      "6pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monday,thursday 6pm",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 18,
+          "minute": 0,
+          "weekday": 1
+        },
+        {
+          "hour": 18,
+          "minute": 0,
+          "weekday": 4
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monday,monday",
+      "6pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monday,monday 6pm",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 18,
+          "minute": 0,
+          "weekday": 1
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monday,",
+      "10:00"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monday, 10:00",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 10,
+          "minute": 0,
+          "weekday": 1
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "day",
+      "9am,9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "day 9am,9am",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "HOURLY"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "HOURLY",
+      "kind": "interval",
+      "interval": 3600
+    }
+  },
+  {
+    "tokens": [
+      "MONDAY",
+      "10:00"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "MONDAY 10:00",
+      "kind": "calendar",
+      "entries": [
+        {
+          "hour": 10,
+          "minute": 0,
+          "weekday": 1
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "5M"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "5M",
+      "kind": "interval",
+      "interval": 300
+    }
+  },
+  {
+    "tokens": [
+
+    ],
+    "ok": false,
+    "error": "empty schedule"
+  },
+  {
+    "tokens": [
+      "banana"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"banana\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "0m"
+    ],
+    "ok": false,
+    "error": "interval too small (min 10s)"
+  },
+  {
+    "tokens": [
+      "0s"
+    ],
+    "ok": false,
+    "error": "interval too small (min 10s)"
+  },
+  {
+    "tokens": [
+      "9s"
+    ],
+    "ok": false,
+    "error": "interval too small (min 10s)"
+  },
+  {
+    "tokens": [
+      "25h99"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"25h99\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "1d"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"1d\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "15"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"15\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "m"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"m\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "-5m"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"-5m\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "15m",
+      "extra"
+    ],
+    "ok": false,
+    "error": "cannot parse days \"15m\" (day | weekdays | weekends | monday | monday,thursday)"
+  },
+  {
+    "tokens": [
+      "mon",
+      "8am"
+    ],
+    "ok": false,
+    "error": "cannot parse days \"mon\" (day | weekdays | weekends | monday | monday,thursday)"
+  },
+  {
+    "tokens": [
+      "day",
+      "5s"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"5s\""
+  },
+  {
+    "tokens": [
+      "day",
+      "13pm"
+    ],
+    "ok": false,
+    "error": "hour out of range for am/pm: \"13pm\""
+  },
+  {
+    "tokens": [
+      "day",
+      "0am"
+    ],
+    "ok": false,
+    "error": "hour out of range for am/pm: \"0am\""
+  },
+  {
+    "tokens": [
+      "day",
+      "9:5"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"9:5\""
+  },
+  {
+    "tokens": [
+      "day",
+      "24:00"
+    ],
+    "ok": false,
+    "error": "time out of range: \"24:00\""
+  },
+  {
+    "tokens": [
+      "day",
+      "9:60"
+    ],
+    "ok": false,
+    "error": "time out of range: \"9:60\""
+  },
+  {
+    "tokens": [
+      "day",
+      "25"
+    ],
+    "ok": false,
+    "error": "time out of range: \"25\""
+  },
+  {
+    "tokens": [
+      "day",
+      ""
+    ],
+    "ok": false,
+    "error": "cannot parse time \"\" (e.g. 9am or 9am,6pm)"
+  },
+  {
+    "tokens": [
+      "day",
+      ","
+    ],
+    "ok": false,
+    "error": "cannot parse time \",\" (e.g. 9am or 9am,6pm)"
+  },
+  {
+    "tokens": [
+      "day",
+      "9am,"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"9am,\" (e.g. 9am or 9am,6pm)"
+  },
+  {
+    "tokens": [
+      "day",
+      "9am,,6pm"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"9am,,6pm\" (e.g. 9am or 9am,6pm)"
+  },
+  {
+    "tokens": [
+      ",monday",
+      "10:00"
+    ],
+    "ok": false,
+    "error": "cannot parse days \",monday\" (day | weekdays | weekends | monday | monday,thursday)"
+  },
+  {
+    "tokens": [
+      "monday,banana",
+      "10:00"
+    ],
+    "ok": false,
+    "error": "cannot parse days \"monday,banana\" (day | weekdays | weekends | monday | monday,thursday)"
+  },
+  {
+    "tokens": [
+      "",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse days \"\" (day | weekdays | weekends | monday | monday,thursday)"
+  },
+  {
+    "tokens": [
+      "day",
+      "9am",
+      "6pm"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"day 9am 6pm\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  }
+]

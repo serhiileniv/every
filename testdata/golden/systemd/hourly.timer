@@ -1,0 +1,10 @@
+[Unit]
+Description=every timer hourly
+
+[Timer]
+AccuracySec=1s
+OnActiveSec=3600
+OnUnitActiveSec=3600
+
+[Install]
+WantedBy=timers.target

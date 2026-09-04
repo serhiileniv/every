@@ -6,14 +6,16 @@
 #
 #   pwsh test/e2e/windows.ps1 -Prefix <install prefix>
 #
-# Expects `every` already installed at -Prefix (install.ps1), so the shim
-# branch of Runtime.bin is what gets exercised -- the path real users get.
+# Expects `every` already installed at -Prefix (install.ps1), so the installed
+# binary is what gets exercised -- the path real users get. Before 0.4 this
+# drove a generated every.cmd shim whose only job was to keep a Ruby
+# interpreter path out of every task; there is no interpreter now.
 param(
   [Parameter(Mandatory = $true)][string]$Prefix
 )
 
 $ErrorActionPreference = "Stop"
-$EveryCmd = Join-Path $Prefix "bin\every.cmd"
+$EveryCmd = Join-Path $Prefix "bin\every.exe"
 $script:pass = 0
 $script:fail = 0
 $TaskPath = "\every\"
@@ -137,11 +139,15 @@ if ($st -ne "Disabled" -and $st -ne "<absent>") { Ok "service no longer reports 
 else { Bad "resume re-enabled the task" "State is $st" }
 
 # --------------------------------------------------------------- the XML/args
-Sec "2. task action targets the stable shim, not a pinned Ruby path"
+Sec "2. task action targets the installed binary, with no interpreter"
 $xml = & schtasks.exe /Query /TN "\every\probe" /XML 2>&1 | Out-String
+# cmd.exe is still the Command: Task Scheduler exposes no per-task environment
+# block, so EVERY_HOME is set inline before the binary is called.
 Has "action invokes cmd.exe" $xml "cmd.exe"
-Has "action calls the installed every.cmd shim" $xml "every.cmd"
-Hasnt "action does NOT hardcode the Ruby interpreter path" $xml "ruby.exe"
+Has "action calls the installed every.exe" $xml "every.exe"
+Has "action pins EVERY_HOME inline" $xml "EVERY_HOME="
+Hasnt "action does NOT hardcode a Ruby interpreter path" $xml "ruby.exe"
+Hasnt "action does not reference the retired .cmd shim" $xml "every.cmd"
 
 # ------------------------------------------------------------------ execution
 Sec "3. command execution and quoting (the temp-script path)"
@@ -177,17 +183,11 @@ Has "ampersand reaches the batch file intact" (Every @('log', 'amper')).Out "a&b
 # tokens after `--` are joined with single spaces, like cron. So seed the store
 # directly to test the thing that IS `every`'s: that whatever command it holds
 # reaches the generated temp script byte-for-byte.
-$seed = Join-Path $env:RUNNER_TEMP "seed_spaced.rb"
-@'
-$LOAD_PATH.unshift(ARGV[0])
-require "every"
-Every::Store.load.add("spaced",
-  { "cmd" => %q{cmd /c "echo one   two"}, "quiet" => true,
-    "schedule" => Every::Schedule.parse(["15m"]).to_h })
-'@ | Set-Content -Encoding UTF8 $seed
-ruby $seed (Join-Path $Prefix "lib\every\lib")
+# Seeded through every's own hidden hook rather than a helper script, so this
+# no longer needs an interpreter or knowledge of the install layout.
+$null = Every @('__seed', 'spaced', 'cmd /c "echo one   two"')
 if ($LASTEXITCODE -eq 0) { Ok "seeded a command with runs of spaces" }
-else { Bad "seed failed" "ruby exited $LASTEXITCODE" }
+else { Bad "seed failed" "__seed exited $LASTEXITCODE" }
 $null = Every @('run', 'spaced')
 Has "runs of spaces survive into the temp script" (Every @('log', 'spaced')).Out "one   two"
 
@@ -232,7 +232,10 @@ Same "rm of unknown task exits 66"    66 (Every @('rm', 'nosuch')).Code
 Same "pause of unknown task exits 66" 66 (Every @('pause', 'nosuch')).Code
 $r = Every @('banana', '--', 'echo hi')
 Same "bad schedule exits 64" 64 $r.Code
+# Language-neutral: a Ruby backtrace names a .rb file, a Go panic names a .go
+# file and a goroutine. Neither may reach a user.
 Hasnt "bad schedule prints no backtrace" $r.Out ".rb:"
+Hasnt "bad schedule prints no stack trace" $r.Out "goroutine"
 
 # Documented Windows floor: interval schedules start at 1m.
 $r = Every @('15s', '--name', 'toofast', '--', 'echo nope')
@@ -288,6 +291,15 @@ if (Test-Path $taskDir) {
 }
 if ($leftFiles.Count -eq 0) { Ok "no task XML left behind" }
 else { Bad "leftover XML" (($leftFiles | ForEach-Object { $_.Name }) -join ", ") }
+
+# The generated .runner.rb wrappers are gone with the interpreter. If any
+# appear, something is still writing the pre-0.4 layout.
+$wrappers = @()
+if (Test-Path $taskDir) {
+  $wrappers = @(Get-ChildItem $taskDir -Filter *.runner.rb -ErrorAction SilentlyContinue)
+}
+if ($wrappers.Count -eq 0) { Ok "no Ruby wrapper scripts generated" }
+else { Bad "wrapper scripts" (($wrappers | ForEach-Object { $_.Name }) -join ", ") }
 
 $temp = @(Get-ChildItem $env:TEMP -Filter "every-command*" -ErrorAction SilentlyContinue)
 if ($temp.Count -eq 0) { Ok "no leaked every-command temp scripts" }

@@ -1,0 +1,22 @@
+{
+  "raw": "weekends 11am",
+  "kind": "calendar",
+  "to_h": {
+    "raw": "weekends 11am",
+    "kind": "calendar",
+    "entries": [
+      {
+        "hour": 11,
+        "minute": 0,
+        "weekday": 0
+      },
+      {
+        "hour": 11,
+        "minute": 0,
+        "weekday": 6
+      }
+    ]
+  },
+  "next_run": "2026-09-05T11:00:00-04:00",
+  "human": null
+}

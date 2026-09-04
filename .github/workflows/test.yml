@@ -2,37 +2,92 @@ name: test
 
 on:
   push:
-    branches: [main]
+    branches: [main, go]
   pull_request:
 
+env:
+  GO_VERSION: "1.25"
+
 jobs:
-  macos:
-    runs-on: macos-latest
+  # Unit tests everywhere, including under the race detector. The differential
+  # tests against the Ruby tree run here too, on the runners that have a Ruby;
+  # they skip themselves elsewhere.
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      # System Ruby (2.6) is the compatibility floor — test against it.
-      - name: Syntax check
-        run: /usr/bin/ruby -cw bin/every lib/every.rb lib/every/*.rb
-      - name: Unit tests
-        run: for f in test/*_test.rb; do echo "== $f =="; /usr/bin/ruby "$f" || exit 1; done
-      # The unit tests only prove plist *generation*. This registers a real
-      # launchd agent, runs it, pauses/resumes/removes it, and asserts
-      # ~/Library/LaunchAgents is byte-identical afterwards.
-      - name: End-to-end (real launchd)
-        run: sh test/e2e/unix.sh "$PWD" "$RUNNER_TEMP/every-home"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Vet
+        run: go vet ./...
+      # Bounded on purpose. The default is ten minutes PER PACKAGE, so a
+      # single hang grinds through every package before the job fails, with no
+      # useful output -- which is exactly what happened on Windows. An explicit
+      # timeout makes a hang fail fast AND dump every goroutine's stack, which
+      # names the test.
+      - name: Test
+        run: go test ./... -count=1 -timeout 8m
+      - name: Test (race)
+        run: go test -race ./... -count=1 -timeout 12m
+      - name: Formatting
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          unformatted=$(gofmt -l . | grep -v '^testdata/' || true)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
 
-  linux:
+  # Every target we publish must at least compile, on every commit -- a broken
+  # cross-build discovered at tag time is a broken release.
+  cross:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Syntax check
-        run: ruby -cw bin/every lib/every.rb lib/every/*.rb
-      - name: Unit tests
-        run: for f in test/*_test.rb; do echo "== $f =="; ruby "$f" || exit 1; done
-      # Validate every generated OnCalendar expression with real systemd.
-      # (Same script the `docker` workflow runs in a pinned container.)
-      - name: systemd-analyze calendar validation
-        run: ruby test/systemd_calendar_check.rb
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build every published target
+        run: |
+          set -eux
+          for pair in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            GOOS=${pair%/*} GOARCH=${pair#*/} CGO_ENABLED=0 go build -o /dev/null ./cmd/every
+          done
+      - name: The dependency count must stay at zero
+        run: |
+          # The "dependencies: zero" claim is a stated design value, not a
+          # nice-to-have. One `go get` away from being false, so it is checked.
+          deps=$(go list -m all | tail -n +2 | wc -l)
+          if [ "$deps" -ne 0 ]; then echo "gained $deps module dependencies:"; go list -m all | tail -n +2; exit 1; fi
+
+  # The unit tests prove plist generation. This registers a real launchd agent,
+  # runs it, pauses/resumes/removes it, and asserts ~/Library/LaunchAgents is
+  # byte-identical afterwards.
+  macos-e2e:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build
+        run: go build -o "$RUNNER_TEMP/every" ./cmd/every
+      - name: End-to-end (real launchd)
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every" "$RUNNER_TEMP/every-home"
+
+  linux-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build
+        run: go build -o "$RUNNER_TEMP/every" ./cmd/every
       # A user bus is needed to register user timers. Without it the E2E still
       # runs and reports the lifecycle section as SKIP rather than passing it.
       - name: Enable a systemd user session
@@ -40,93 +95,66 @@ jobs:
           sudo loginctl enable-linger "$USER" || true
           systemctl --user show-environment || echo "no user bus — lifecycle will skip"
       - name: End-to-end (real systemd)
-        run: sh test/e2e/unix.sh "$PWD" "$RUNNER_TEMP/every-home"
-
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-      - name: Syntax check
-        shell: pwsh
-        run: |
-          $failed = 0
-          ruby -cw bin/every
-          if ($LASTEXITCODE -ne 0) { $failed = 1 }
-          ruby -cw lib/every.rb
-          if ($LASTEXITCODE -ne 0) { $failed = 1 }
-          Get-ChildItem lib/every/*.rb | ForEach-Object {
-            ruby -cw $_.FullName
-            if ($LASTEXITCODE -ne 0) { $failed = 1 }
-          }
-          exit $failed
-      - name: Unit tests
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $failed = 0
-          Get-ChildItem test/*_test.rb | ForEach-Object {
-            Write-Host "== $($_.Name) =="
-            ruby $_.FullName
-            if ($LASTEXITCODE -ne 0) { $failed = 1 }
-          }
-          exit $failed
-      - name: PowerShell installer syntax check
-        shell: pwsh
-        run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path install.ps1), [ref]$tokens, [ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) { $errors | Format-List; exit 1 }
-      - name: PowerShell installer checkout path
-        shell: pwsh
-        run: |
-          $prefix = Join-Path $env:RUNNER_TEMP "every-install"
-          .\install.ps1 -Prefix $prefix
-          if (-not (Test-Path (Join-Path $prefix "lib\every\bin\every"))) { throw "runtime was not staged under lib\every" }
-          if (-not (Test-Path (Join-Path $prefix "bin\every.cmd"))) { throw "shim was not installed" }
-          & (Join-Path $prefix "bin\every.cmd") version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\install.ps1 -Prefix $prefix -Uninstall
+        run: sh test/e2e/unix.sh "$RUNNER_TEMP/every" "$RUNNER_TEMP/every-home"
 
   # Windows against the REAL Task Scheduler service. The unit tests cover XML
   # and CSV shapes in isolation, which is how a PowerShell query that could
-  # never match a task shipped in 0.3.0-rc. Installs first, so the every.cmd
-  # shim branch of Runtime.bin is what gets exercised.
+  # never match a task shipped in 0.3.0-rc. Installs first, so what gets driven
+  # is the installed binary -- the path real users get.
   windows-e2e:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/setup-go@v5
         with:
-          ruby-version: '3.3'
+          go-version: ${{ env.GO_VERSION }}
       - name: Install every
         shell: pwsh
         run: .\install.ps1 -Prefix "$env:RUNNER_TEMP\every"
+      - name: The installed layout is the binary, with no Ruby-era leftovers
+        shell: pwsh
+        run: |
+          $prefix = "$env:RUNNER_TEMP\every"
+          if (-not (Test-Path "$prefix\bin\every.exe")) { throw "every.exe was not installed" }
+          if (Test-Path "$prefix\bin\every.cmd") { throw "the retired .cmd shim was installed" }
+          if (Test-Path "$prefix\lib\every")     { throw "a runtime tree was staged" }
+          & "$prefix\bin\every.exe" version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: End-to-end (real Task Scheduler)
         shell: pwsh
         run: pwsh -File test/e2e/windows.ps1 -Prefix "$env:RUNNER_TEMP\every"
+      - name: Uninstall leaves nothing behind
+        shell: pwsh
+        run: |
+          .\install.ps1 -Prefix "$env:RUNNER_TEMP\every" -Uninstall
+          if (Test-Path "$env:RUNNER_TEMP\every") { throw "the prefix survived uninstall" }
 
-  # The Linux install path (install.sh) — the one users curl. Exercised end to
-  # end: install, run the installed binary, uninstall, and prove it left
-  # nothing behind.
+  # install.sh — the path users curl. Exercised end to end: install, run the
+  # installed binary, upgrade over itself, uninstall, and prove it left nothing.
   install:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
       - name: POSIX sh lint
-        run: shellcheck -s sh install.sh
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck && shellcheck -s sh install.sh
       - name: Install (local checkout, user prefix)
         run: sh install.sh --prefix "$HOME/opt/every"
-      - name: The installed every works
+      - name: The installed every works, and the layout is right
         run: |
           set -eux
-          test -L "$HOME/opt/every/bin/every"
+          test -f "$HOME/opt/every/bin/every"
+          test -x "$HOME/opt/every/bin/every"
+          test ! -e "$HOME/opt/every/lib/every"
           "$HOME/opt/every/bin/every" version
           "$HOME/opt/every/bin/every" list
-          test -f "$HOME/opt/every/lib/every/lib/every.rb"
           test -f "$HOME/opt/every/share/man/man1/every.1"
           test -f "$HOME/opt/every/share/zsh/site-functions/_every"
           test -f "$HOME/.local/share/bash-completion/completions/every"
@@ -140,25 +168,10 @@ jobs:
         run: |
           set -eux
           sh install.sh --uninstall --prefix "$HOME/opt/every"
-          test ! -e "$HOME/opt/every/lib/every"
           test ! -e "$HOME/opt/every/bin/every"
           test ! -e "$HOME/opt/every/share/man/man1/every.1"
           test ! -e "$HOME/.local/share/bash-completion/completions/every"
           test ! -e "$HOME/.config/fish/completions/every.fish"
-      # The `curl … | sh` path: piped, so there's no checkout to install from —
-      # the script has to resolve the latest release and download it. Installs
-      # that release, not this commit.
-      - name: Piped install (download path)
-        run: |
-          set -eux
-          cat install.sh | sh -s -- --prefix "$HOME/opt/piped"
-          "$HOME/opt/piped/bin/every" version
-      # An explicit --version must beat the checkout sitting right there.
-      - name: Pinned version wins over the local tree
-        run: |
-          set -eux
-          sh install.sh --prefix "$HOME/opt/pinned" --version 0.1.3
-          "$HOME/opt/pinned/bin/every" version | grep -q "every 0.1.3"
       # A prefix the user can't write to must fail with advice, not a stack of
       # cp errors and a half-install.
       - name: Unwritable prefix fails cleanly
@@ -172,3 +185,43 @@ jobs:
           cat out.txt
           grep -q "sudo" out.txt
           test ! -e "$HOME/readonly/every"
+
+  # Static checks on the things that are not Go.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PowerShell installer and e2e parse
+        shell: pwsh
+        run: |
+          $failed = 0
+          foreach ($f in @('install.ps1', 'test/e2e/windows.ps1')) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $f), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { Write-Host "== $f =="; $errors | Format-List; $failed = 1 }
+          }
+          exit $failed
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          install-only: true
+      - name: GoReleaser config
+        run: |
+          # `check` exits non-zero for deprecations as well as errors, and this
+          # config keeps one on purpose: `brews` rather than `homebrew_casks`,
+          # because Homebrew cannot upgrade a formula into a cask and doing so
+          # would strand existing users. See the comment in .goreleaser.yaml.
+          #
+          # So: a real error fails the job, a deprecation is reported and does
+          # not. goreleaser says "configuration is valid" whenever the only
+          # complaints are deprecations.
+          out=$(goreleaser check 2>&1) || true
+          echo "$out"
+          if echo "$out" | grep -q "configuration is valid"; then
+            echo "::notice::goreleaser config is valid (deprecations allowed, see .goreleaser.yaml)"
+          else
+            echo "::error::goreleaser check found a real configuration error"
+            exit 1
+          fi

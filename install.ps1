@@ -1,7 +1,23 @@
+<#
+.SYNOPSIS
+  every — installer for native Windows.
+
+.DESCRIPTION
+  Downloads one static every.exe for this platform, verifies it against the
+  release checksums, and puts it at <Prefix>\bin\every.exe.
+
+  There is no Ruby to find, no runtime tree to stage, and no every.cmd shim.
+  The shim existed only so Task Scheduler would not pin a Ruby interpreter path
+  into every task; with a single executable there is nothing to pin.
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File install.ps1
+  powershell -ExecutionPolicy Bypass -File install.ps1 -Prefix C:\tools\every
+  powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall
+#>
 param(
   [string]$Prefix = "",
   [string]$Version = "",
-  [string]$Ref = "",
   [switch]$Uninstall,
   [switch]$Force
 )
@@ -10,20 +26,25 @@ $ErrorActionPreference = "Stop"
 $repo = "serhiileniv/every"
 
 function Say([string]$Message) { Write-Host $Message }
+function Step([string]$Message) { Write-Host "  $Message" -ForegroundColor DarkGray }
 function Die([string]$Message) {
-  Write-Error "every: $Message"
+  Write-Host "every: $Message" -ForegroundColor Red
   exit 1
 }
 
 if (-not $Prefix) {
   $Prefix = Join-Path $env:LOCALAPPDATA "Programs\every"
 }
-$Prefix = [IO.Path]::GetFullPath($Prefix)
-$libDir = Join-Path $Prefix "lib\every"
-$binDir = Join-Path $Prefix "bin"
-$launcher = Join-Path $binDir "every.cmd"
-$dataDir = Join-Path $env:LOCALAPPDATA "every"
-$downloadTemp = ""
+$Prefix   = [IO.Path]::GetFullPath($Prefix)
+$binDir   = Join-Path $Prefix "bin"
+$binary   = Join-Path $binDir "every.exe"
+$shareDir = Join-Path $Prefix "share"
+$manifest = Join-Path $shareDir "every\.install-manifest"
+$dataDir  = Join-Path $env:LOCALAPPDATA "every"
+# The shim a pre-0.4 install left behind. Removed on upgrade, because a task
+# still pointing at it would invoke a Ruby that is no longer there.
+$legacyShim   = Join-Path $binDir "every.cmd"
+$legacyLibDir = Join-Path $Prefix "lib\every"
 
 function Get-EveryTasks {
   try {
@@ -36,111 +57,184 @@ function Get-EveryTasks {
   }
 }
 
+# ---- uninstall ------------------------------------------------------------
+
 if ($Uninstall) {
-  if (-not (Test-Path (Join-Path $libDir "bin\every"))) {
+  if (-not ((Test-Path $binary) -or (Test-Path $legacyShim))) {
     Die "no every install found at $Prefix"
   }
 
+  # Removing the launcher out from under live tasks is exactly the silent
+  # breakage every exists to kill: the service keeps firing and every run dies.
   $tasks = @(Get-EveryTasks)
   if ($tasks.Count -gt 0 -and -not $Force) {
     Say "Still scheduled:"
     $tasks | ForEach-Object { Say "  $($_.TaskName)" }
-    Say "Remove them first with: every rm <name>"
+    Say ""
+    Say "Remove them first, so nothing is left pointing at a deleted every:"
+    $tasks | ForEach-Object { Say "  every rm $($_.TaskName -replace '^\\every\\','')" }
     Die "nothing removed (use -Force to uninstall anyway)"
   }
   if ($tasks.Count -gt 0) {
     Write-Warning "leaving live Task Scheduler tasks behind because -Force was used"
   }
 
-  if (Test-Path $launcher) { Remove-Item -Force $launcher }
   if (Test-Path $Prefix) { Remove-Item -Recurse -Force $Prefix }
   Say "every uninstalled from $Prefix"
   Say "Tasks and logs were kept in $dataDir"
   exit 0
 }
 
-if (-not (Get-Command ruby.exe -ErrorAction SilentlyContinue)) {
-  Die "ruby.exe not found — install RubyInstaller for Windows, then retry"
-}
-$rubyPath = (Get-Command ruby.exe).Source
-$rubyVersion = & ruby.exe -e 'print RUBY_VERSION'
-if ([version]$rubyVersion -lt [version]"2.6") {
-  Die "Ruby $rubyVersion is too old — every needs Ruby 2.6+"
-}
+# ---- platform -------------------------------------------------------------
+# Matches the archive names pinned in .goreleaser.yaml. Changing either without
+# the other breaks every download.
 
-function Resolve-Source {
-  $here = $PSScriptRoot
-  if (-not $Version -and -not $Ref -and
-      (Test-Path (Join-Path $here "lib\every.rb")) -and
-      (Test-Path (Join-Path $here "bin\every"))) {
-    return $here
-  }
-
-  if (-not $Version -and -not $Ref) {
-    $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
-    $Ref = $release.tag_name
-  }
-  if ($Version) {
-    $Ref = $Version
-    if ($Ref -notmatch '^v') { $Ref = "v$Ref" }
-  }
-  if ($Ref -match '^v[0-9]') {
-    $url = "https://github.com/$repo/archive/refs/tags/$Ref.zip"
-  } else {
-    $url = "https://github.com/$repo/archive/refs/heads/$Ref.zip"
-  }
-
-  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("every-" + [guid]::NewGuid().ToString())
-  New-Item -ItemType Directory -Path $tmp | Out-Null
-  $archive = Join-Path $tmp "every.zip"
-  Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $archive
-  Expand-Archive -Path $archive -DestinationPath $tmp -Force
-  $source = Get-ChildItem $tmp -Directory |
-    Where-Object { $_.Name -ne "" } | Select-Object -First 1
-  if (-not $source -or -not (Test-Path (Join-Path $source.FullName "lib\every.rb"))) {
-    Die "unexpected archive layout for $Ref"
-  }
-  $script:downloadTemp = $tmp
-  return $source.FullName
+$arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+  "AMD64" { "amd64" }
+  "ARM64" { "arm64" }
+  "x86"   { Die "32-bit Windows is not supported — every ships amd64 and arm64" }
+  default { Die "unsupported architecture: $($env:PROCESSOR_ARCHITECTURE)" }
 }
 
-$source = Resolve-Source
-$parent = Split-Path -Parent $Prefix
-New-Item -ItemType Directory -Path $parent -Force | Out-Null
+# ---- source: local checkout, or download ----------------------------------
 
-$libParent = Split-Path -Parent $libDir
-New-Item -ItemType Directory -Path $libParent -Force | Out-Null
-$staging = "${libDir}.new.$PID"
-$previous = "${libDir}.old.$PID"
-if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
-if (Test-Path $previous) { Remove-Item -Recurse -Force $previous }
-New-Item -ItemType Directory -Path $staging -Force | Out-Null
-Copy-Item (Join-Path $source "bin") (Join-Path $staging "bin") -Recurse
-Copy-Item (Join-Path $source "lib") (Join-Path $staging "lib") -Recurse
+$tempDir = ""
+$srcDir  = ""
 
-if (Test-Path $libDir) { Move-Item $libDir $previous }
-Move-Item $staging $libDir
-if (Test-Path $previous) { Remove-Item -Recurse -Force $previous }
+try {
+  $here = Split-Path -Parent $PSCommandPath
+  $canBuildLocally = (-not $Version) -and
+                     (Test-Path (Join-Path $here "go.mod")) -and
+                     (Test-Path (Join-Path $here "cmd\every")) -and
+                     ($null -ne (Get-Command go.exe -ErrorAction SilentlyContinue))
 
-New-Item -ItemType Directory -Path $binDir -Force | Out-Null
-$shim = @"
-@echo off
-"$rubyPath" "%~dp0..\lib\every\bin\every" %*
-"@
-$shim | Set-Content -Encoding ASCII $launcher
+  $tempDir = Join-Path ([IO.Path]::GetTempPath()) ("every-install-" + [Guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-$versionOutput = & $launcher version 2>&1
-if ($LASTEXITCODE -ne 0) {
-  Die "installed, but '$launcher version' failed: $versionOutput"
+  if ($canBuildLocally) {
+    # A checkout with a Go toolchain builds what is in front of it, so running
+    # the installer in a working tree tests the code being changed rather than
+    # silently installing the last release over it.
+    Step "building from $here"
+    $env:CGO_ENABLED = "0"
+    & go.exe build -trimpath -ldflags "-s -w" -o (Join-Path $tempDir "every.exe") (Join-Path $here "cmd\every")
+    if ($LASTEXITCODE -ne 0) { Die "go build failed" }
+    $srcDir = $here
+    $stagedBinary = Join-Path $tempDir "every.exe"
+  }
+  else {
+    if (-not $Version) {
+      try {
+        $latest = Invoke-RestMethod -UseBasicParsing `
+          -Uri "https://api.github.com/repos/$repo/releases/latest"
+        $Version = $latest.tag_name
+      } catch {
+        Die "couldn't resolve the latest release (rate-limited or offline) — retry with -Version X.Y.Z"
+      }
+    }
+    $Version = $Version -replace '^v',''
+    $name = "every_${Version}_windows_${arch}.zip"
+    $url  = "https://github.com/$repo/releases/download/v$Version/$name"
+    $zip  = Join-Path $tempDir $name
+
+    Step "downloading v$Version (windows/$arch)"
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+    } catch {
+      Die "download failed: $url`nIf v$Version predates 0.4.0 it has no binaries — those releases installed from source."
+    }
+
+    # Verify against the release checksums. A truncated or tampered download
+    # must fail loudly rather than install a broken binary.
+    try {
+      $sums = (Invoke-WebRequest -UseBasicParsing `
+        -Uri "https://github.com/$repo/releases/download/v$Version/checksums.txt").Content
+      $expected = ($sums -split "`n" |
+        Where-Object { $_ -match "\s$([regex]::Escape($name))\s*$" } |
+        ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+      if ($expected) {
+        $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+        if ($actual -ne $expected.ToLower()) {
+          Die "checksum mismatch for $name`n  expected $expected`n  got      $actual`nThis is either a corrupted download or a tampered release. Nothing was installed."
+        }
+        Step "checksum verified"
+      } else {
+        Write-Warning "$name is not listed in checksums.txt — skipping verification"
+      }
+    } catch {
+      Write-Warning "no checksums.txt for v$Version — skipping verification"
+    }
+
+    $extract = Join-Path $tempDir "x"
+    Expand-Archive -Path $zip -DestinationPath $extract -Force
+    $stagedBinary = Join-Path $extract "every.exe"
+    if (-not (Test-Path $stagedBinary)) { Die "unexpected archive layout for $name" }
+    $srcDir = $extract
+  }
+
+  # ---- install ------------------------------------------------------------
+
+  New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+  New-Item -ItemType Directory -Path (Split-Path -Parent $manifest) -Force | Out-Null
+
+  # Write beside the target and move over it. Replacing a running executable in
+  # place is what breaks a task that fires mid-upgrade.
+  $tempBinary = Join-Path $binDir ".every.new.$PID.exe"
+  Copy-Item -Force $stagedBinary $tempBinary
+  Move-Item -Force $tempBinary $binary
+  Set-Content -Encoding ASCII -Path $manifest -Value $binary
+  Step "installed $binary"
+
+  foreach ($pair in @(
+      @{ From = "man\every.1";              To = "share\man\man1\every.1" },
+      @{ From = "completions\every.bash";   To = "share\bash-completion\completions\every" },
+      @{ From = "completions\_every";       To = "share\zsh\site-functions\_every" },
+      @{ From = "completions\every.fish";   To = "share\fish\vendor_completions.d\every.fish" })) {
+    $from = Join-Path $srcDir $pair.From
+    if (Test-Path $from) {
+      $to = Join-Path $Prefix $pair.To
+      New-Item -ItemType Directory -Path (Split-Path -Parent $to) -Force | Out-Null
+      Copy-Item -Force $from $to
+      Add-Content -Encoding ASCII -Path $manifest -Value $to
+      Step "installed $to"
+    }
+  }
+
+  # A pre-0.4 install left a Ruby tree and a .cmd shim. The shim is what tasks
+  # written by that version invoke, so it has to go before anything can be
+  # confused about which launcher is current -- every's own migration rewrites
+  # those tasks to name the binary on its next run.
+  if (Test-Path $legacyShim) {
+    Remove-Item -Force $legacyShim
+    Step "removed $legacyShim (no longer needed)"
+  }
+  if (Test-Path $legacyLibDir) {
+    Remove-Item -Recurse -Force $legacyLibDir
+    Step "removed $legacyLibDir (no longer needed)"
+  }
+
+  # ---- report -------------------------------------------------------------
+  # Running what we just installed is the smoke test.
+  $version = & $binary version 2>&1 | Select-Object -First 1
+  if ($LASTEXITCODE -ne 0) { Die "installed, but '$binary version' failed:`n$version" }
+
+  Say ""
+  Say "$version -> $Prefix" 
+  Say ""
+
+  $onPath = ($env:PATH -split ';') -contains $binDir
+  if (-not $onPath) {
+    Write-Warning "$binDir isn't on your PATH. Add it for this user:"
+    Say "  [Environment]::SetEnvironmentVariable('PATH', `"$binDir;`" + [Environment]::GetEnvironmentVariable('PATH','User'), 'User')"
+  }
+
+  Say ""
+  Say "  every day 9am -- echo it ran     schedule something"
+  Say "  every list                       did it run?"
+  Say "  every doctor                     why isn't it running?"
 }
-Say "every installed to $Prefix"
-if (($env:PATH -split ';') -notcontains $binDir) {
-  Say "Add this directory to PATH if needed: $binDir"
-}
-Say "Data and logs: $dataDir"
-Say "  every day 9am -- 'echo it ran'"
-Say "  every list"
-Say "  every doctor"
-if ($downloadTemp -and (Test-Path $downloadTemp)) {
-  Remove-Item -Recurse -Force $downloadTemp
+finally {
+  if ($tempDir -and (Test-Path $tempDir)) {
+    Remove-Item -Recurse -Force $tempDir -ErrorAction SilentlyContinue
+  }
 }

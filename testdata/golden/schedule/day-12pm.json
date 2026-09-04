@@ -1,0 +1,16 @@
+{
+  "raw": "day 12pm",
+  "kind": "calendar",
+  "to_h": {
+    "raw": "day 12pm",
+    "kind": "calendar",
+    "entries": [
+      {
+        "hour": 12,
+        "minute": 0
+      }
+    ]
+  },
+  "next_run": "2026-09-02T12:00:00-04:00",
+  "human": null
+}

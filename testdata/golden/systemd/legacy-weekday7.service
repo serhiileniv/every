@@ -1,0 +1,7 @@
+[Unit]
+Description=every task legacy-weekday7
+
+[Service]
+Type=oneshot
+Environment=EVERY_HOME=/every-golden/home
+ExecStart=__RUBY__ "__LAUNCHER__" run "legacy-weekday7"
