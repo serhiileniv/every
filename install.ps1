@@ -152,23 +152,41 @@ try {
 
     # Verify against the release checksums. A truncated or tampered download
     # must fail loudly rather than install a broken binary.
+    #
+    # Downloaded to a file rather than read from .Content: GitHub serves release
+    # assets as application/octet-stream, and PowerShell hands back a BYTE ARRAY
+    # for a non-text content type. Splitting that on newlines matched nothing,
+    # so verification was silently skipped with a warning nobody would read --
+    # a checksum that never runs is worse than no checksum, because it looks
+    # like one ran.
+    $sumsFile = Join-Path $tempDir "checksums.txt"
+    $haveSums = $true
     try {
-      $sums = (Invoke-WebRequest -UseBasicParsing `
-        -Uri "https://github.com/$repo/releases/download/v$Version/checksums.txt").Content
-      $expected = ($sums -split "`n" |
-        Where-Object { $_ -match "\s$([regex]::Escape($name))\s*$" } |
-        ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
-      if ($expected) {
-        $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
-        if ($actual -ne $expected.ToLower()) {
-          Die "checksum mismatch for $name`n  expected $expected`n  got      $actual`nThis is either a corrupted download or a tampered release. Nothing was installed."
-        }
-        Step "checksum verified"
-      } else {
-        Write-Warning "$name is not listed in checksums.txt — skipping verification"
-      }
+      Invoke-WebRequest -UseBasicParsing -OutFile $sumsFile `
+        -Uri "https://github.com/$repo/releases/download/v$Version/checksums.txt"
     } catch {
+      $haveSums = $false
       Write-Warning "no checksums.txt for v$Version — skipping verification"
+    }
+
+    if ($haveSums) {
+      $expected = $null
+      foreach ($line in (Get-Content $sumsFile)) {
+        # "<sha256>  <name>" -- split on whitespace instead of matching a
+        # regex against the whole line, which is one fewer thing to get wrong.
+        $parts = $line.Trim() -split '\s+'
+        if ($parts.Count -ge 2 -and $parts[1] -eq $name) { $expected = $parts[0]; break }
+      }
+      if (-not $expected) {
+        # The file exists and this archive is not in it. That is not a release
+        # too old to have checksums; it is a mismatch worth stopping for.
+        Die "$name is not listed in checksums.txt for v$Version — refusing to install an unverified download"
+      }
+      $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+      if ($actual -ne $expected.ToLower()) {
+        Die "checksum mismatch for $name`n  expected $expected`n  got      $actual`nThis is either a corrupted download or a tampered release. Nothing was installed."
+      }
+      Step "checksum verified"
     }
 
     $extract = Join-Path $tempDir "x"
@@ -221,8 +239,14 @@ try {
 
   # ---- report -------------------------------------------------------------
   # Running what we just installed is the smoke test.
-  $version = & $binary version 2>&1 | Select-Object -First 1
-  if ($LASTEXITCODE -ne 0) { Die "installed, but '$binary version' failed:`n$version" }
+  # Captured whole, THEN trimmed to one line. Piping a native command into
+  # Select-Object -First 1 stops the pipeline, which terminates the process
+  # early and leaves a non-zero $LASTEXITCODE -- so a perfectly good install
+  # reported "installed, but 'every.exe version' failed" and printed the
+  # correct version underneath. Racy, so it passed locally and failed in CI.
+  $output = & $binary version 2>&1
+  if ($LASTEXITCODE -ne 0) { Die "installed, but '$binary version' failed:`n$output" }
+  $version = ($output | Select-Object -First 1)
 
   Say ""
   Say "$version -> $Prefix" 
