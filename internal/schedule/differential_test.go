@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -27,6 +28,16 @@ func TestNextRunMatchesRuby(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "lib", "every.rb")); err != nil {
 		t.Skip("Ruby tree removed; differential comparison no longer applies")
+	}
+
+	// Ruby on Windows does not honor a POSIX zone name in TZ -- it resolves
+	// times against the system zone instead, so the same instant comes back
+	// with a different offset and every comparison fails for a reason that has
+	// nothing to do with the port. The DST logic this test exists for is
+	// covered on macOS and Linux, where both implementations agree on what
+	// "America/New_York" means.
+	if runtime.GOOS == "windows" {
+		t.Skip("ruby on Windows ignores a POSIX TZ name; the zone would differ, not the logic")
 	}
 
 	const zone = "America/New_York"

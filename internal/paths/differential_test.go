@@ -56,16 +56,22 @@ func TestMatchesRubyImplementation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Via a file, never argv -- see internal/tail for what argv does to a JSON
+	// payload on Windows.
+	in := filepath.Join(t.TempDir(), "envs.json")
+	if err := os.WriteFile(in, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	const script = `
 $LOAD_PATH.unshift File.join(ARGV[0], "lib")
 require "every"
 require "json"
-puts JSON.generate(JSON.parse(ARGV[1]).map { |e|
+puts JSON.generate(JSON.parse(File.read(ARGV[1])).map { |e|
   { "data" => Every.resolve_data_dir(e), "config" => Every.resolve_config_dir(e) }
 })
 `
-	cmd := exec.Command(ruby, "-e", script, root, string(payload))
+	cmd := exec.Command(ruby, "-e", script, root, in)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("ruby: %v\n%s", err, out)

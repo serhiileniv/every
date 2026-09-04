@@ -158,16 +158,26 @@ func TestMatchesRuby(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Via a file, never argv. Windows re-quotes a command line on the way to
+	// the child, and a JSON blob full of escaped backslashes -- which is what
+	// Windows paths serialize to -- can end in a trailing backslash that
+	// swallows the closing quote. The child then waits for input that never
+	// comes, and the test hangs until the timeout kills it. Confirmed from a
+	// goroutine dump: blocked in os.Process.wait for the full eight minutes.
+	in := filepath.Join(t.TempDir(), "probes.json")
+	if err := os.WriteFile(in, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	const script = `
 $LOAD_PATH.unshift File.join(ARGV[0], "lib")
 require "every"
 require "json"
-puts JSON.generate(JSON.parse(ARGV[1]).map { |p|
+puts JSON.generate(JSON.parse(File.read(ARGV[1])).map { |p|
   Every::Tail.lines(p["path"], p["n"]).join
 })
 `
-	out, err := exec.Command(ruby, "-e", script, root, string(payload)).CombinedOutput()
+	out, err := exec.Command(ruby, "-e", script, root, in).CombinedOutput()
 	if err != nil {
 		t.Fatalf("ruby: %v\n%s", err, out)
 	}

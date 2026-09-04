@@ -166,8 +166,31 @@ func TestWindowsDriveQualifiedXDGIsNotAbsolute(t *testing.T) {
 	}
 }
 
-func TestExpandPath(t *testing.T) {
+// The purely lexical behavior, with the platform pinned so the rules being
+// asserted are the ones under test rather than the host's.
+func TestExpandPathLexical(t *testing.T) {
 	withGOOS(t, "darwin")
+	for _, tc := range []struct{ in, want string }{
+		{"/a/b", "/a/b"},
+		{"/a/b/", "/a/b"},     // trailing slash stripped
+		{"/a/./b", "/a/b"},    // . collapsed
+		{"/a/b/../c", "/a/c"}, // .. collapsed lexically, no filesystem access
+		{"/a//b", "/a/b"},     // duplicate separators collapsed
+	} {
+		if got := mustExpand(t, tc.in); got != tc.want {
+			t.Errorf("ExpandPath(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// The parts that depend on this machine -- the home directory and the working
+// directory -- with NO platform stub.
+//
+// Stubbing here was a contradiction: it asked for POSIX rules while feeding in
+// real Windows paths, so a tilde expanded to a drive-qualified home which the
+// POSIX rule then judged non-absolute and prefixed with the working directory.
+// These cases have to answer for the host they run on.
+func TestExpandPathHostDependent(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
@@ -197,7 +220,8 @@ func TestExpandPath(t *testing.T) {
 // recording the symlink rather than its target is what lets an upgrade reach
 // already-scheduled tasks. Guard it so nobody "improves" this into EvalSymlinks.
 func TestExpandPathDoesNotResolveSymlinks(t *testing.T) {
-	withGOOS(t, "darwin")
+	// No platform stub: the path comes from the real filesystem, so the
+	// rules applied to it have to be the real ones too.
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target")
 	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
