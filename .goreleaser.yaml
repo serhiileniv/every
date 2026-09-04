@@ -95,6 +95,12 @@ release:
 brews:
   - name: every
     ids: [every]
+    # Skipped when the tap token is absent, so a missing secret costs the tap
+    # update and nothing else. Publishing six binaries and a GitHub release
+    # should not hinge on whether a pull request can be opened against another
+    # repository -- that failure is recoverable by hand, and a failed release
+    # halfway through is not.
+    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_GITHUB_TOKEN "" }}true{{ else }}false{{ end }}'
     repository:
       owner: serhiileniv
       name: homebrew-tap

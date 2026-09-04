@@ -78,5 +78,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # A separate token: the default one cannot push to another repo, and
-          # the tap lives outside this one.
+          # the tap lives outside this one. Empty is allowed -- the config skips
+          # the tap update rather than failing the release, and the step below
+          # says so loudly.
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      - name: Say if the Homebrew tap was skipped
+        # Always runs, and decides in shell rather than in an `if:` expression:
+        # whether the secrets context is usable there varies, and a release
+        # report that silently stops appearing is worse than no report.
+        if: always()
+        env:
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]; then
+            echo "::warning title=Homebrew tap not updated::HOMEBREW_TAP_GITHUB_TOKEN is not set. The release and its binaries are published; the tap was skipped. Update serhiileniv/homebrew-tap by hand, or add the secret and re-run this workflow."
+          else
+            echo "Homebrew tap update attempted with the configured token."
+          fi

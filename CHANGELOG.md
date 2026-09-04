@@ -2,30 +2,65 @@
 
 ## 0.5.0 — unreleased
 
-**Legible to programs.** `every` was readable by people and opaque to anything
-else: an agent had to scrape a table, guess at failures from prose on stderr,
-and do a read-then-write dance that raced with itself.
+Two pieces of work, released together because the first was never published on
+its own: `every` is now a single static binary, and it is legible to programs
+as well as to people.
 
-Everything here is additive. Every invocation that worked in 0.4.0 produces the
-same bytes and the same exit code, which the frozen surface table asserts for
-107 invocations. The one exception is `every help`, which now documents the new
-commands.
+Upgrading from 0.3.x needs nothing. Scheduled tasks are repaired automatically
+the first time any command runs — units written before this release invoke a
+Ruby interpreter that is no longer there — and `every list` says so in one line
+when it happens. Rolling back works too: an older `every` reads a store this one
+wrote, and keeps firing tasks whose units this one rewrote.
 
-### Added
+### No runtime required
+
+Nothing to install alongside it, nothing to keep in sync, and the
+*dependencies: zero* badge is finally literal.
+
+The reason was distribution, not speed. macOS ships Ruby 2.6 deprecated and
+slated for removal, Windows has none at all, and Linux distributions disagree
+about what the package is called. Roughly half the installer existed to find an
+interpreter, and both bugs shipped since 0.3.0 — `every add` on Windows, and the
+wrapper load path — were distribution bugs rather than logic bugs.
+
+Behavior is unchanged on purpose: same commands, same flags, same schedule
+grammar, same on-disk format, same generated scheduler units. That was verified
+against the implementation being replaced rather than against a description of
+it, while both existed side by side — 1,794 schedule inputs compared on the
+accept/reject decision, the exact rejection message and the serialized record;
+1,177 unit renderings compared byte for byte; 81 CLI invocations compared on
+stdout, stderr and exit code; and eight stateful command sequences compared step
+by step. Zero disagreements.
+
+`install.sh` downloads one binary and verifies it against the release
+checksums. `install.ps1` drops the generated `every.cmd` shim: with no
+interpreter to pin, Task Scheduler invokes the binary directly. Releases are
+built and published by GoReleaser.
+
+### Legible to programs
+
+`every` was readable by people and opaque to anything else. An agent had to
+scrape a table, guess at failures from prose on stderr, and do a read-then-write
+dance that raced with itself.
+
+Everything here is additive. Every invocation that worked before produces the
+same bytes and the same exit code, asserted for 107 invocations; the only
+exception is `every help`, which documents the new commands.
 
 - **`--json` on every command**, not just `list`. Each emits its natural shape;
   `list --json` is unchanged, because the completion scripts scrape it.
 - **Failures are objects too**, on stderr, with a closed vocabulary of codes —
-  `no_such_task`, `bad_schedule`, `already_exists` and so on. The code is the
-  contract; the message beside it may be reworded. Exit codes are unchanged, and
-  the text and JSON forms of a command are tested to agree about whether it
-  failed.
+  `no_such_task`, `no_logs`, `bad_schedule`, `bad_duration`, `bad_name`,
+  `already_exists`, `unsupported_schedule`, `corrupt_store`,
+  `scheduler_failed`. The code is the contract; the message beside it may be
+  reworded. Exit codes are unchanged, and the two forms of a command are tested
+  to agree about whether it failed.
 - **`every set <when> --name <n> -- <cmd>`** adds or updates in place. It exists
   because `rm` then `add` leaves a window where the task does not exist, and if
   the second half fails it never comes back. `set` holds the store lock across
-  the whole operation and restores the previous unit if the scheduler refuses.
-  It preserves run history and the creation time, because an update is not a new
-  task.
+  the whole operation, writes the registry last, and restores the previous unit
+  if the scheduler refuses. It preserves run history and the creation time,
+  because an update is not a new task.
 - **`every inspect <name>`** — everything about one task, including whether the
   scheduler actually has it and when it runs next.
 - **`every exists <name>`** — exit 0 or 66, and nothing on stdout.
@@ -42,70 +77,30 @@ commands.
   default path never opens the log file, so it costs the same whether the log is
   empty or at its 5 MB rotation limit.
 
-### Not added
-
-`--machine` was proposed for ANSI leaking into non-TTY output. Measured on
-0.4.0: zero escape bytes from any command through a pipe. Color is already
-gated on an interactive terminal, `NO_COLOR` and `TERM`. The real hazard was the
-`—` and `·` glyphs in the table, and the answer to those is `--json` rather than
-a second text format nobody would keep aligned.
-
-## 0.4.0 — unreleased
-
-**No runtime required.** `every` is now a single static binary. Nothing to
-install alongside it, nothing to keep in sync, and the *dependencies: zero*
-badge is finally literal.
-
-The reason is distribution, not speed. macOS ships Ruby 2.6 deprecated and
-slated for removal, Windows has none at all, and Linux distributions disagree
-about what the package is called. Roughly half the installer existed to find an
-interpreter, and the last two shipped bugs — `every add` on Windows, and the
-wrapper load path — were both distribution bugs rather than logic bugs.
-
-Behavior is unchanged on purpose. Same commands, same flags, same schedule
-grammar, same on-disk format, same generated scheduler units. The port is
-verified against the previous implementation rather than against a description
-of it: a generated corpus of 1794 schedule inputs is run through both parsers
-and compared on the accept/reject decision, the exact rejection message and the
-serialized record; whole command sequences are compared step by step; and the
-generated plists, units and task XML are compared byte for byte.
-
-### Upgrading
-
-Nothing to do. Existing tasks are repaired automatically the first time you run
-any command — units written before 0.4 invoke the tool through an interpreter,
-which is no longer there, so they are rewritten and re-registered. `every list`
-says so in one line when it happens.
-
-Rolling back works too: a 0.3.x `every` reads a store written by 0.4, and keeps
-firing tasks whose units 0.4 rewrote.
+`--machine` was proposed and dropped. The premise was ANSI leaking into non-TTY
+output; measured, every command through a pipe emits zero escape bytes, because
+color is already gated on an interactive terminal, `NO_COLOR` and `TERM`. The
+real hazard was the `—` and `·` glyphs in the table, and `--json` answers that
+better than a second text format nobody would keep aligned.
 
 ### Fixed
 
+All four were present in 0.3.1:
+
 - A task name written directly into `tasks.json` could escape the units
   directory: `every resume` on a name containing `../` opened a plist outside
-  `~/Library/LaunchAgents`. Names are now validated wherever they become a
-  path. Present in every earlier version.
+  `~/Library/LaunchAgents`. Names are now validated wherever they become a path.
 - `doctor` reported a problem on healthy Linux machines whenever `$USER` was
   unset — a bare `docker exec`, some terminals, anything not started by a login
   shell — and then advised `loginctl enable-linger` with no name.
 - The installer told macOS users "systemd not found", on the platform where
-  launchd is the backend and systemd never will be.
+  launchd is the backend.
 - A timed-out run could signal a process group after the child had been reaped
   and its pid possibly recycled.
 
-### Changed
-
-- The Ruby implementation is deleted. It was kept through the port so the
-  differential tests had a counterpart; it goes now rather than during 0.5.0,
-  which adds commands it never had.
-- `install.sh` downloads one binary and verifies it against the release
-  checksums, rather than copying a source tree. It also refuses to uninstall
-  while launchd tasks are live, which it previously only checked for systemd.
-- `install.ps1` drops the generated `every.cmd` shim; with no interpreter to
-  pin, Task Scheduler invokes the binary directly.
-- Releases are built and published by GoReleaser, which also opens the Homebrew
-  tap pull request that used to be a manual step.
+Two more were Windows-only and found by CI during the port: `every 15s` exited 1
+instead of 64, and `~` was never expanded in a path built with the host
+separator.
 
 ## 0.3.1 — 2026-09-01
 
