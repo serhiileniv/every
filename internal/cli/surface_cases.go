@@ -125,7 +125,13 @@ var SurfaceCases = [][]string{
 	{"resume", "nosuch", "--json"},
 	{"run", "nosuch", "--json"},
 	{"run", "nosuch", "--dry-run"},
-	{"doctor", "--json"},
+	// doctor is deliberately absent, in both forms. Its output names the host's
+	// scheduler and its session -- "launchd user session reachable (gui/501)"
+	// on a Mac, systemd on Linux -- so a fixture captured on one platform can
+	// never match another. It is inherently machine-specific, which is the same
+	// reason scheduler-touching commands are excluded: this table has to be
+	// replayable anywhere. doctor is covered by test/e2e on each platform,
+	// against that platform's real scheduler.
 	{"banana", "--", "true"},
 	{"15m", "--timeout", "0s", "--json", "--", "true"},
 }

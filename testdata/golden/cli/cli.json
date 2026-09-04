@@ -1024,15 +1024,6 @@
   },
   {
     "argv": [
-      "doctor",
-      "--json"
-    ],
-    "exit": 0,
-    "stdout": "{\"ok\":true,\"problems\":0,\"checks\":[{\"label\":\"launchd user session reachable (gui/501)\",\"ok\":true},{\"label\":\"data dir writable ($EVERY_HOME)\",\"ok\":true}]}\n",
-    "stderr": ""
-  },
-  {
-    "argv": [
       "banana",
       "--",
       "true"
