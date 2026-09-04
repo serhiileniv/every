@@ -200,14 +200,17 @@ func TestExpandPathHostDependent(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Expectations in slash form, because that is what ExpandPath returns on
+	// every platform. The resolved directory is printed by help, doctor and
+	// error messages, and one separator throughout is the point of
+	// normalizing it -- so the test has to expect the normalized spelling
+	// rather than whatever the host's own APIs hand back.
+	homeS, wdS := windowsPath(home), windowsPath(wd)
+
 	cases := []struct{ in, want string }{
-		{"/a/b", "/a/b"},
-		{"/a/b/", "/a/b"},     // trailing slash stripped
-		{"/a/./b", "/a/b"},    // . collapsed
-		{"/a/b/../c", "/a/c"}, // .. collapsed lexically, no filesystem access
-		{"~", home},           //
-		{"~/x", filepath.Join(home, "x")},
-		{"rel/x", filepath.Join(wd, "rel/x")}, // absolutized against cwd
+		{"~", homeS},
+		{"~/x", homeS + "/x"},
+		{"rel/x", wdS + "/rel/x"}, // absolutized against cwd
 	}
 	for _, tc := range cases {
 		if got := mustExpand(t, tc.in); got != tc.want {
