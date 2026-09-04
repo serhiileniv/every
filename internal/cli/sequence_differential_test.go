@@ -147,7 +147,7 @@ var (
 // the version, and every wall-clock instant -- so what remains is the part
 // that must be identical.
 func scrub(s, home string) string {
-	s = strings.ReplaceAll(s, home, "$HOME")
+	s = strings.ReplaceAll(scrubHome(s, home), "$EVERY_HOME", "$HOME")
 	s = reVersion.ReplaceAllString(s, "every $VERSION")
 	s = reTimestamp.ReplaceAllString(s, "$TS")
 	s = reDur.ReplaceAllString(s, "dur=$D")

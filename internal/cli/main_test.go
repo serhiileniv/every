@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -70,4 +71,25 @@ func exitCodeOf(cmd *exec.Cmd, runErr error) int {
 		return -1
 	}
 	return 0
+}
+
+// scrubHome replaces a temp data dir with a stable token, in BOTH separator
+// forms.
+//
+// t.TempDir() returns a native path -- backslashes on Windows -- while every
+// normalizes the data dir to forward slashes, because that value is printed by
+// `help`, `doctor` and error messages and a mixed-separator path is ugly to
+// read. So the string in the output and the string the test holds are the same
+// location spelled two ways, and replacing only one of them leaks an absolute
+// machine-specific path into a comparison that is supposed to be portable.
+func scrubHome(s, home string) string {
+	s = strings.ReplaceAll(s, home, "$EVERY_HOME")
+	// Explicit, not filepath.ToSlash: that is a no-op off Windows, so this
+	// helper could not be tested anywhere but the platform it exists for.
+	// Replacing the separator directly works on any host and lets the test
+	// below feed it a real Windows path from a Mac.
+	if slashed := strings.ReplaceAll(home, `\`, "/"); slashed != home {
+		s = strings.ReplaceAll(s, slashed, "$EVERY_HOME")
+	}
+	return s
 }

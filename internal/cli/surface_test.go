@@ -79,6 +79,5 @@ func TestCLISurfaceMatchesFrozen(t *testing.T) {
 // scratch home (which `help` prints) and the version string (so a release bump
 // is not a diff).
 func normalize(s, home string) string {
-	s = strings.ReplaceAll(s, home, "$EVERY_HOME")
-	return strings.ReplaceAll(s, Version, "$VERSION")
+	return strings.ReplaceAll(scrubHome(s, home), Version, "$VERSION")
 }
