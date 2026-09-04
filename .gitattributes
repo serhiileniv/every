@@ -1,13 +1,12 @@
-# A CRLF shebang doesn't run on Linux — `env: 'ruby\r': No such file or
-# directory`, before a line of every ever loads. This repo is edited from
+# A CRLF shebang doesn't run on Linux — `env: 'sh\r': No such file or
+# directory`, before a line of a script executes. This repo is edited from
 # Windows too, so everything a Unix box executes or parses is pinned to LF no
-# matter what core.autocrlf is set to locally.
+# matter what core.autocrlf is set to locally. (The launcher itself is a
+# compiled binary now and needs no such care; the shell scripts still do.)
 * text=auto
 
 install.sh     text eol=lf
 install.ps1    text eol=lf
-bin/every      text eol=lf
-*.rb           text eol=lf
 *.sh           text eol=lf
 completions/*  text eol=lf
 man/*          text eol=lf

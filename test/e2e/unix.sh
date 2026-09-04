@@ -1,7 +1,7 @@
 #!/bin/sh
 # End-to-end test for the Unix backends against the real scheduler.
 #
-#   sh test/e2e/unix.sh <repo-root> <every-home>
+#   sh test/e2e/unix.sh <every-binary> <every-home>
 #
 # The unit tests cover plist/unit *generation*; this exercises the whole path —
 # registration with launchd or systemd, execution through Runner, the log and
@@ -14,16 +14,20 @@
 # and the script asserts the directory is byte-identical afterwards.
 set -u
 
-REPO="${1:?usage: unix.sh <repo-root> <every-home>}"
-EVERY_HOME="${2:?usage: unix.sh <repo-root> <every-home>}"
+REPO="${1:?usage: unix.sh <every-binary> <every-home>}"
+EVERY_HOME="${2:?usage: unix.sh <every-binary> <every-home>}"
 export EVERY_HOME
-# $1 is either a repo root (the Ruby tree, which keeps its launcher at
-# bin/every) or a path to the every binary itself. Accepting both lets one
-# script drive either implementation during the port.
-if [ -d "$REPO" ]; then
-  EVERY="$REPO/bin/every"
-else
-  EVERY="$REPO"
+# $1 is the every binary. It accepted a repo root as well while both
+# implementations existed, so one script could drive either; there is only one
+# now.
+EVERY="$REPO"
+# -f as well as -x: a directory carries the execute bit too, so checking only
+# -x let a repo root through and produced 47 confusing assertion failures
+# instead of one clear message.
+if [ ! -f "$EVERY" ] || [ ! -x "$EVERY" ]; then
+  printf 'not an executable file: %s\n' "$EVERY" >&2
+  printf 'usage: unix.sh <every-binary> <every-home>\n' >&2
+  exit 2
 fi
 PROBE="e2eprobe"
 
@@ -76,7 +80,7 @@ case "$OS" in
 esac
 
 printf 'every E2E (%s / %s)\n' "$OS" "$BACKEND"
-printf 'repo       : %s\n' "$REPO"
+printf 'binary     : %s\n' "$REPO"
 printf 'EVERY_HOME : %s\n' "$EVERY_HOME"
 
 # Can this machine actually register a user task? Probe before asserting.

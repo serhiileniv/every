@@ -46,6 +46,9 @@ firing tasks whose units 0.4 rewrote.
 
 ### Changed
 
+- The Ruby implementation is deleted. It was kept through the port so the
+  differential tests had a counterpart; it goes now rather than during 0.5.0,
+  which adds commands it never had.
 - `install.sh` downloads one binary and verifies it against the release
   checksums, rather than copying a source tree. It also refuses to uninstall
   while launchd tasks are live, which it previously only checked for systemd.

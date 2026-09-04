@@ -15,13 +15,17 @@ import (
 //
 // They are not features: they are absent from help, from the man page and from
 // every completion script, and the double underscore is there so an
-// accidental invocation reads as internal. They exist because two things the
-// e2e suite must test have no side-effect-free path through the real CLI:
+// accidental invocation reads as internal.
 //
-//   - Parsing a schedule without registering anything. The Ruby suite called
-//     Schedule.parse in-process; a compiled binary has no equivalent, and
-//     driving `every <sched> -- true` would register eleven real launchd
-//     agents just to ask whether the grammar accepts a string.
+// They were introduced so one e2e script could drive both implementations
+// during the port. That reason is gone with the Ruby tree; these two remain
+// because the underlying problem never depended on it -- there is still no
+// side-effect-free path through the real CLI to either of them:
+//
+//   - Parsing a schedule without registering anything. Driving
+//     `every <sched> -- true` would register eleven real launchd agents just
+//     to ask whether the grammar accepts a string, and then have to remove
+//     them again.
 //   - Seeding the store without touching the scheduler, which is how the
 //     execution, ledger and durability sections stay fast and hermetic -- and
 //     the only way to exercise the lock from five concurrent processes.

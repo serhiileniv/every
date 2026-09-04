@@ -210,3 +210,21 @@ Dated log; append, don't rewrite.
     string should not require registering eleven real launchd agents, and
     exercising the lock from five concurrent processes has no side-effect-free
     path through the real CLI.
+- **2026-09-04 — The Ruby tree is deleted.** It was kept on main through the
+  port so the differential tests had something to compare against, on the rule
+  that it stayed until the Go passed the same end-to-end scripts on all three
+  platforms. It has: real launchd, real systemd with a user session, and the
+  real Windows Task Scheduler, plus 1,794 schedule inputs, 1,177 unit
+  renderings, 81 frozen CLI invocations and eight stateful command sequences
+  diffed live between the two trees with zero disagreements.
+  - **Removed now rather than later, deliberately.** 0.5.0 adds commands the
+    Ruby never had, so from that point a differential would report intended
+    differences as failures and the suite would teach people to ignore it.
+  - **The seven differential tests skip rather than fail** when the tree is
+    absent, which was designed in and verified before the deletion.
+  - **The fixtures stay**, with their provenance in testdata/golden/README.md.
+    They stop being proof of a faithful port and become a regression baseline;
+    that is a weaker claim and the README says so, because a fixture updated to
+    make a red test green is how a baseline quietly stops meaning anything.
+  - The generators went with the tree -- they could not run without it -- and
+    are recoverable from history at v0.4.0~1.
