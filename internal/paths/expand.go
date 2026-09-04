@@ -2,7 +2,7 @@ package paths
 
 import (
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -26,16 +26,20 @@ import (
 // is left alone rather than growing a passwd lookup for a case that does not
 // occur.
 func ExpandPath(p string) (string, error) {
+	// Normalize separators FIRST, so the tilde check below sees one spelling.
+	// It previously ran after, which meant a "~\.local\share\every" built by
+	// filepath.Join on Windows never matched "~/" and was never expanded -- the
+	// tilde survived into the resolved path and the whole thing was then
+	// treated as relative. A real bug, reachable whenever XDG_DATA_HOME is set
+	// but not absolute on Windows.
+	p = windowsPath(p)
+
 	if p == "~" || strings.HasPrefix(p, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		p = home + strings.TrimPrefix(p, "~")
-	}
-
-	if goos == "windows" {
-		p = windowsPath(p)
+		p = windowsPath(home) + strings.TrimPrefix(p, "~")
 	}
 
 	if !isAbs(p) {
@@ -43,16 +47,34 @@ func ExpandPath(p string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		p = wd + "/" + p
+		p = windowsPath(wd) + "/" + p
+	} else if goos == "windows" && strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") {
+		// A rooted path with no drive is relative to the CURRENT drive on
+		// Windows, and File.expand_path prefixes it accordingly: "/custom/x"
+		// becomes "D:/custom/x". Without this the two implementations resolve
+		// the same EVERY_HOME to different directories, which is how the
+		// dual-unit comparison ended up rendering units for two machines.
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		if drive := windowsPath(wd); len(drive) >= 2 && drive[1] == ':' {
+			p = drive[:2] + p
+		}
 	}
 
-	// filepath.Clean does the lexical . / .. collapsing and the trailing-slash
-	// stripping, and leaves symlinks alone -- unlike filepath.EvalSymlinks.
-	p = filepath.Clean(p)
-	if goos == "windows" {
-		p = windowsPath(p)
-	}
-	return p, nil
+	// path.Clean, not filepath.Clean: the latter rewrites separators to the
+	// HOST's, which made this function's result depend on where it ran rather
+	// than on the platform it was asked about. Everything here is already
+	// slash-form, and slashes are what the callers want -- the data dir is
+	// printed by help, doctor and error messages, and a mixed-separator path
+	// is what windowsPath exists to avoid.
+	//
+	// It still does the lexical . and .. collapsing and the trailing-slash
+	// stripping, and still leaves symlinks alone -- unlike EvalSymlinks, which
+	// would break the property that a unit records the symlink it was invoked
+	// through.
+	return path.Clean(p), nil
 }
 
 // isAbs answers for the path shape after windowsPath has run, so a Windows

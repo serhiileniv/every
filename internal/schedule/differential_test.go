@@ -74,19 +74,26 @@ func TestNextRunMatchesRuby(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Written to a file rather than passed as an argument: Windows caps a
+	// command line at ~32 KB and this corpus is larger, which failed as
+	// "The filename or extension is too long" -- a message that names neither.
+	in := filepath.Join(t.TempDir(), "queries.json")
+	if err := os.WriteFile(in, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	const script = `
 $LOAD_PATH.unshift File.join(ARGV[0], "lib")
 require "every"
 require "json"
 require "time"
-puts JSON.generate(JSON.parse(ARGV[1]).map { |q|
+puts JSON.generate(JSON.parse(File.read(ARGV[1])).map { |q|
   s = Every::Schedule.parse(q["spec"])
   n = s.next_run(Time.parse(q["from"]))
   n && n.iso8601
 })
 `
-	cmd := exec.Command(ruby, "-e", script, root, string(payload))
+	cmd := exec.Command(ruby, "-e", script, root, in)
 	cmd.Env = append(os.Environ(), "TZ="+zone)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

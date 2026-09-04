@@ -207,7 +207,7 @@ func TestExpandPathDoesNotResolveSymlinks(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if got := mustExpand(t, link); got != link {
-		t.Errorf("ExpandPath(%q) = %q, want the symlink itself", link, got)
+	if got, want := mustExpand(t, link), windowsPath(link); got != want {
+		t.Errorf("ExpandPath(%q) = %q, want the symlink itself (%q)", link, got, want)
 	}
 }

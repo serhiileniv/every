@@ -29,9 +29,12 @@ func TestMatchesRubyImplementation(t *testing.T) {
 		t.Skip("Ruby tree removed; differential comparison no longer applies")
 	}
 
-	// Only the non-Windows branches: Ruby decides platform from RUBY_PLATFORM,
-	// which cannot be stubbed across a process boundary. The Windows branches
-	// are covered by the table tests above.
+	// No platform stub here, deliberately. Ruby decides its branch from
+	// RUBY_PLATFORM and cannot be told otherwise across a process boundary, so
+	// stubbing the Go side pointed the two implementations at different rules
+	// and compared the results. Letting each answer for the host it is on makes
+	// this test cover the Windows branches on Windows, which is where they
+	// matter and where nothing else compares them.
 	envs := []map[string]string{
 		{},
 		{"EVERY_HOME": "/custom/x"},
@@ -76,7 +79,6 @@ puts JSON.generate(JSON.parse(ARGV[1]).map { |e|
 		t.Fatalf("ruby returned %d results for %d envs", len(want), len(envs))
 	}
 
-	withGOOS(t, "darwin") // any non-windows; Ruby is answering as this host
 	for i, env := range envs {
 		gotData, err := DataDir(MapEnv(env))
 		if err != nil {

@@ -107,7 +107,9 @@ func DataDir(env Env) (string, error) {
 	if strings.HasPrefix(xdg, "/") {
 		return ExpandPath(join(xdg, "every"))
 	}
-	return ExpandPath(filepath.Join("~", ".local", "share", "every"))
+	// A slash literal, not filepath.Join: Join uses the host separator, and a
+	// "~\.local\..." is not a tilde path any expansion rule recognizes.
+	return ExpandPath("~/.local/share/every")
 }
 
 // ConfigDir resolves where systemd user units live: $XDG_CONFIG_HOME/systemd/user
@@ -134,7 +136,7 @@ func ConfigDir(env Env) (string, error) {
 	if strings.HasPrefix(xdg, "/") {
 		return join(xdg, "systemd", "user"), nil
 	}
-	return ExpandPath(filepath.Join("~", ".config", "systemd", "user"))
+	return ExpandPath("~/.config/systemd/user")
 }
 
 // join mirrors Ruby's File.join, which always inserts a forward slash
