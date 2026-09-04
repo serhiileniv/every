@@ -76,6 +76,13 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
+          # Pinned from the ref rather than left to `git describe`, which picks
+          # ONE tag when several point at the same commit. Tagging v0.5.0 on the
+          # commit that already carried v0.5.0-rc1 made it resolve the release
+          # candidate, build every_0.5.0-rc1_* and try to upload them onto the
+          # rc's existing release -- six 422s and a failed publish, with the
+          # real release never created.
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # A separate token: the default one cannot push to another repo, and
           # the tap lives outside this one. Empty is allowed -- the config skips

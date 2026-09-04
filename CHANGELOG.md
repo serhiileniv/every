@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 — unreleased
+## 0.5.0 — 2026-09-04
 
 Two pieces of work, released together because the first was never published on
 its own: `every` is now a single static binary, and it is legible to programs
