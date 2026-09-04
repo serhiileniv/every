@@ -64,23 +64,33 @@ interface and a memory.
 
 ## Install
 
-**macOS** — Homebrew:
-
-```bash
-brew tap serhiileniv/tap && brew trust serhiileniv/tap && brew install every
-```
-
-**Linux** — one line, no sudo (installs into `~/.local`):
+**macOS and Linux** — one line, no sudo (installs into `~/.local`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/serhiileniv/every/main/install.sh | sh
 ```
 
-**Windows** — PowerShell:
+**Windows** — one line, PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+irm https://raw.githubusercontent.com/serhiileniv/every/main/install.ps1 | iex
 ```
+
+Re-run either to upgrade. The installer verifies the download against the
+release checksums, and puts the binary where your scheduler already expects it,
+so an upgrade reaches tasks you scheduled with an earlier version.
+
+<details>
+<summary>Prefer Homebrew on macOS? It upgrades in place.</summary>
+
+```bash
+brew tap serhiileniv/tap && brew install every
+```
+
+Both install the same binary. Homebrew gives you `brew upgrade`; the one-liner
+works anywhere, including machines without Homebrew.
+
+</details>
 
 Native Windows tasks use the Windows Task Scheduler and store data under
 `%LOCALAPPDATA%\every`. Interval schedules on Windows require at least one

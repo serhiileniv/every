@@ -102,8 +102,14 @@ $tempDir = ""
 $srcDir  = ""
 
 try {
-  $here = Split-Path -Parent $PSCommandPath
-  $canBuildLocally = (-not $Version) -and
+  # $PSCommandPath is empty when the script is piped rather than run from a
+  # file -- `irm ... | iex`, which is the one-liner the README documents. Left
+  # unguarded, Split-Path throws on $null under ErrorActionPreference=Stop and
+  # the install dies before doing anything, which is precisely the kind of
+  # distribution bug 0.3.0 shipped.
+  $here = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
+  $canBuildLocally = $here -and
+                     (-not $Version) -and
                      (Test-Path (Join-Path $here "go.mod")) -and
                      (Test-Path (Join-Path $here "cmd\every")) -and
                      ($null -ne (Get-Command go.exe -ErrorAction SilentlyContinue))

@@ -120,6 +120,19 @@ jobs:
           if (Test-Path "$prefix\lib\every")     { throw "a runtime tree was staged" }
           & "$prefix\bin\every.exe" version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # The irm | iex path the README documents. Piped, $PSCommandPath is empty,
+      # which used to make Split-Path throw before anything was installed --
+      # the install died on the one-liner and nowhere else.
+      - name: Piped install (the irm | iex path)
+        shell: pwsh
+        run: |
+          $prefix = "$env:RUNNER_TEMP\piped"
+          Get-Content install.ps1 -Raw | Invoke-Expression
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\every\bin\every.exe")) {
+            throw "the piped install did not produce a binary"
+          }
+          & "$env:LOCALAPPDATA\Programs\every\bin\every.exe" version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: End-to-end (real Task Scheduler)
         shell: pwsh
         run: pwsh -File test/e2e/windows.ps1 -Prefix "$env:RUNNER_TEMP\every"
@@ -174,6 +187,16 @@ jobs:
           test ! -e "$HOME/.config/fish/completions/every.fish"
       # A prefix the user can't write to must fail with advice, not a stack of
       # cp errors and a half-install.
+      # The path users actually take. Piping means $0 is the shell, not a file,
+      # so the local-build branch must not fire and the release must resolve --
+      # neither of which the checkout install exercises.
+      - name: Piped install (the curl | sh path)
+        run: |
+          set -eux
+          cat install.sh | sh -s -- --prefix "$HOME/opt/piped"
+          "$HOME/opt/piped/bin/every" version
+          "$HOME/opt/piped/bin/every" list
+          sh install.sh --uninstall --prefix "$HOME/opt/piped"
       - name: Unwritable prefix fails cleanly
         run: |
           set -eu
