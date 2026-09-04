@@ -19,12 +19,32 @@ import (
 // parse", where pointing at help is useful, and "you typed `every rm` with no
 // name", where the correct form IS the message and a second line would just be
 // noise.
-type usageError struct{ msg string }
+type usageError struct {
+	msg string
+	// code and name are additive: they feed the --json renderer and change
+	// nothing about the text, which the frozen surface table asserts byte for
+	// byte. An empty code falls back to the generic one.
+	code string
+	name string
+}
 
 func (e *usageError) Error() string { return e.msg }
 
+func (e *usageError) errCode(fallback string) string {
+	if e.code == "" {
+		return fallback
+	}
+	return e.code
+}
+
 func usagef(format string, a ...any) error {
 	return &usageError{msg: fmt.Sprintf(format, a...)}
+}
+
+// coded is usagef with an explicit error code, for the failures a program
+// needs to tell apart.
+func coded(code, name, format string, a ...any) error {
+	return &usageError{msg: fmt.Sprintf(format, a...), code: code, name: name}
 }
 
 type invocationError struct{ msg string }
@@ -137,15 +157,15 @@ func deriveName(cmd string, exists func(string) bool) string {
 func parseDuration(raw string) (int, error) {
 	m := durationRe.FindStringSubmatch(raw)
 	if m == nil {
-		return 0, usagef("bad duration %s (e.g. 90s, 30m, 2h)", rubyInspect(raw))
+		return 0, coded(CodeBadDuration, "", "bad duration %s (e.g. 90s, 30m, 2h)", rubyInspect(raw))
 	}
 	n, err := strconv.Atoi(m[1])
 	if err != nil {
-		return 0, usagef("bad duration %s (e.g. 90s, 30m, 2h)", rubyInspect(raw))
+		return 0, coded(CodeBadDuration, "", "bad duration %s (e.g. 90s, 30m, 2h)", rubyInspect(raw))
 	}
 	secs := n * map[string]int{"s": 1, "m": 60, "h": 3600}[m[2]]
 	if secs == 0 {
-		return 0, usagef("--timeout must be greater than 0")
+		return 0, coded(CodeBadDuration, "", "--timeout must be greater than 0")
 	}
 	return secs, nil
 }

@@ -18,7 +18,11 @@ import (
 // Every check is phrased as a claim that is either true or false, and every
 // failure carries the command that fixes it. A diagnostic that says what is
 // wrong without saying what to do is only half a diagnostic.
-func (c *CLI) doctor() error {
+func (c *CLI) doctor(args []string) error {
+	_, asJSON := stripJSONFlag(args)
+	if asJSON {
+		return c.doctorJSON()
+	}
 	failures := 0
 
 	// check reports one condition and returns whether it failed.
@@ -219,3 +223,87 @@ func logMentionsPermission(logDir, name string) bool {
 
 // used to keep the schedule import meaningful if the checks above change shape
 var _ = schedule.Interval
+
+// checkResult is one doctor finding.
+type checkResult struct {
+	Label string `json:"label"`
+	OK    bool   `json:"ok"`
+	Fix   string `json:"fix,omitempty"`
+	Task  string `json:"task,omitempty"`
+}
+
+type doctorPayload struct {
+	OK       bool          `json:"ok"`
+	Problems int           `json:"problems"`
+	Checks   []checkResult `json:"checks"`
+}
+
+// doctorJSON runs the same checks as the text form and reports them as data.
+//
+// A separate walk rather than a shared one that buffers: doctor's text output
+// interleaves headings, notes and blank lines that carry meaning to a person
+// and none to a program, and threading a "collect instead of print" flag
+// through all of it made both harder to read than two honest passes.
+func (c *CLI) doctorJSON() error {
+	var checks []checkResult
+	record := func(label string, ok bool, fix, task string) {
+		if !ok {
+			checks = append(checks, checkResult{Label: label, OK: false, Fix: fix, Task: task})
+			return
+		}
+		checks = append(checks, checkResult{Label: label, OK: true, Task: task})
+	}
+
+	c.doctorPlatform(func(label string, ok bool, fix string) { record(label, ok, fix, "") })
+
+	writable := os.MkdirAll(c.Dirs.Data, 0o755) == nil && isWritable(c.Dirs.Data)
+	record(fmt.Sprintf("data dir writable (%s)", c.Dirs.Data), writable,
+		fmt.Sprintf("fix permissions on %s", c.Dirs.Data), "")
+
+	s, err := store.Load(c.Dirs.Data)
+	if err != nil {
+		return err
+	}
+
+	loadedNames, err := c.Backend.LoadedNames()
+	if err != nil {
+		return err
+	}
+	loaded := map[string]bool{}
+	for _, n := range loadedNames {
+		loaded[n] = true
+	}
+
+	for _, name := range s.Tasks.Names() {
+		task, _ := s.Tasks.Get(name)
+		record(fmt.Sprintf("scheduler resource exists (%s)", c.Backend.UnitPath(name)),
+			c.Backend.ResourceExists(name),
+			fmt.Sprintf("re-create the task: every rm %s && every <schedule> -- <cmd>", name), name)
+
+		if !task.Paused {
+			record(fmt.Sprintf("scheduled in %s", c.Backend.Name()), loaded[name],
+				fmt.Sprintf("load it: every resume %s", name), name)
+		}
+
+		if last, lErr := s.LastRun(name); lErr == nil && last != nil {
+			record("last run succeeded", last.Exit == 0,
+				fmt.Sprintf("exit=%d — see: every log %s", last.Exit, name), name)
+		}
+	}
+
+	problems := 0
+	for _, ch := range checks {
+		if !ch.OK {
+			problems++
+		}
+	}
+	if err := emitJSON(c.Stdout, doctorPayload{
+		OK: problems == 0, Problems: problems, Checks: checks,
+	}); err != nil {
+		return err
+	}
+	if problems > 0 {
+		return &exitError{code: 1, errorCode: CodeInternal}
+	}
+	return nil
+}

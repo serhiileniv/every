@@ -23,6 +23,13 @@ type Task struct {
 	Paused    bool            `json:"paused"`
 	Quiet     bool            `json:"quiet"`
 	Timeout   int             `json:"timeout,omitempty"`
+
+	// OnFail is a command run after a failed run. Added in 0.5.0, and appended
+	// rather than inserted: field order is the emitted key order, so an
+	// existing tasks.json must round-trip byte for byte through a version that
+	// knows about this field. omitempty keeps it out of every record that does
+	// not use one.
+	OnFail string `json:"on_fail,omitempty"`
 }
 
 // Run is one line of a task's JSONL ledger.

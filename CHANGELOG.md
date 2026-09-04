@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.5.0 — unreleased
+
+**Legible to programs.** `every` was readable by people and opaque to anything
+else: an agent had to scrape a table, guess at failures from prose on stderr,
+and do a read-then-write dance that raced with itself.
+
+Everything here is additive. Every invocation that worked in 0.4.0 produces the
+same bytes and the same exit code, which the frozen surface table asserts for
+107 invocations. The one exception is `every help`, which now documents the new
+commands.
+
+### Added
+
+- **`--json` on every command**, not just `list`. Each emits its natural shape;
+  `list --json` is unchanged, because the completion scripts scrape it.
+- **Failures are objects too**, on stderr, with a closed vocabulary of codes —
+  `no_such_task`, `bad_schedule`, `already_exists` and so on. The code is the
+  contract; the message beside it may be reworded. Exit codes are unchanged, and
+  the text and JSON forms of a command are tested to agree about whether it
+  failed.
+- **`every set <when> --name <n> -- <cmd>`** adds or updates in place. It exists
+  because `rm` then `add` leaves a window where the task does not exist, and if
+  the second half fails it never comes back. `set` holds the store lock across
+  the whole operation and restores the previous unit if the scheduler refuses.
+  It preserves run history and the creation time, because an update is not a new
+  task.
+- **`every inspect <name>`** — everything about one task, including whether the
+  scheduler actually has it and when it runs next.
+- **`every exists <name>`** — exit 0 or 66, and nothing on stdout.
+- **`every run <name> --dry-run`** — the shell, directory, timeout and exact
+  command that would be used, without running it.
+- **`--on-fail '<command>'`** per task, run after a failure with `EVERY_TASK`,
+  `EVERY_EXIT` and `EVERY_LOG` in its environment. Its output goes into the
+  task's own log and its exit code is never propagated: a broken notifier must
+  not disguise a working task.
+- **`every schema [command]`** — the JSON shape a command emits, generated from
+  the types rather than hand-written, so it cannot describe a field that does
+  not exist.
+- `every log --json` omits captured output unless `--with-output` is given. The
+  default path never opens the log file, so it costs the same whether the log is
+  empty or at its 5 MB rotation limit.
+
+### Not added
+
+`--machine` was proposed for ANSI leaking into non-TTY output. Measured on
+0.4.0: zero escape bytes from any command through a pipe. Color is already
+gated on an interactive terminal, `NO_COLOR` and `TERM`. The real hazard was the
+`—` and `·` glyphs in the table, and the answer to those is `--json` rather than
+a second text format nobody would keep aligned.
+
 ## 0.4.0 — unreleased
 
 **No runtime required.** `every` is now a single static binary. Nothing to

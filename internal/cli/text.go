@@ -13,7 +13,7 @@ import "fmt"
 // produced the binary rather than a constant somebody forgot to bump. It is a
 // var, not a const, for exactly that reason -- the linker cannot rewrite a
 // const. The fallback value is what a plain `go build` reports.
-var Version = "0.4.0"
+var Version = "0.5.0"
 
 // Tagline and Homepage identify the tool in `version` and `help`.
 const (
@@ -44,7 +44,8 @@ add a task:
 
   Flags: --name NAME, --quiet (no failure notification),
          --timeout 30m (kill a run that overruns, so it can't block
-         the next one).
+         the next one), --on-fail '<command>' (run something when
+         it fails).
   The command runs through your platform shell (PATH works), in the
   directory where you added it. Missed calendar runs fire when the
   scheduler becomes available. Failed runs notify when supported unless
@@ -59,7 +60,25 @@ manage:
   every rm <name>           remove task (logs are kept)
   every doctor              explain why something isn't running
 
+for scripts and agents:
+  every set <when> --name <n> -- <cmd>   add, or update in place
+  every inspect <name>                   everything about one task
+  every exists <name>                    exit 0 if it exists, 66 if not
+  every run <name> --dry-run             what would run, without running
+  every schema [command]                 the JSON shape a command emits
+
+  --json works on every command above, and on failures: the error goes to
+  stderr as {"error":"no_such_task",...} with the same exit code as always.
+  every log --json omits captured output unless you add --with-output.
+
 data:  %s
 more:  %s
 `, Version, Tagline, Homepage, dataDir, Homepage)
+}
+
+// versionPayload is `every version --json`.
+type versionPayload struct {
+	Version  string `json:"version"`
+	Tagline  string `json:"tagline"`
+	Homepage string `json:"homepage"`
 }

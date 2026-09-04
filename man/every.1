@@ -68,6 +68,51 @@ Remove a task and its agent (the log is kept).
 .TP
 .B every doctor
 Explain, in plain language, why a task isn't running.
+.SH FOR SCRIPTS AND AGENTS
+.TP
+.B every set \fIwhen\fR --name \fIname\fR -- \fIcommand\fR
+Add a task, or update one that already exists. Unlike
+.B rm
+followed by
+.BR add ,
+there is no window in which the task does not exist: the store lock is held
+across the whole operation and the previous unit is restored if the scheduler
+refuses. Run history and the creation time are preserved.
+.TP
+.B every inspect \fIname\fR
+Everything about one task \(em schedule, command, directory, timeout, whether
+the scheduler actually has it, and when it runs next.
+.TP
+.B every exists \fIname\fR
+Exit 0 if the task exists, 66 if it does not. Prints nothing.
+.TP
+.B every run \fIname\fR --dry-run
+Print the shell, directory, timeout and exact command that would be used, and
+execute nothing.
+.TP
+.B every schema [\fIcommand\fR]
+The JSON shape a command emits, generated from the types themselves.
+.TP
+.B --json
+Accepted by every command above. Output goes to standard output; failures go to
+standard error as an object with a stable
+.B error
+code \(em
+.BR no_such_task ", " no_logs ", " bad_schedule ", " bad_duration ", "
+.BR bad_name ", " already_exists ", " unsupported_schedule ", "
+.BR corrupt_store ", " scheduler_failed .
+Exit statuses are unchanged.
+.TP
+.B every log \fIname\fR --json [--with-output]
+Run history from the ledger. Captured output is omitted unless
+.B --with-output
+is given, which keeps the response bounded and avoids reading the log at all.
+.TP
+.B --on-fail \fIcommand\fR
+Run a command after a failed run, with
+.BR EVERY_TASK ", " EVERY_EXIT " and " EVERY_LOG
+in its environment. Its output is appended to the task's log and its exit
+status is never propagated.
 .SH OPTIONS
 .TP
 .BI \-\-name " NAME"

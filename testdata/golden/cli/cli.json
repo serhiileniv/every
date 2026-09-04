@@ -1,10 +1,8 @@
 [
   {
-    "argv": [
-
-    ],
+    "argv": [],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -12,7 +10,7 @@
       "help"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -20,7 +18,7 @@
       "-h"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -28,7 +26,7 @@
       "--help"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -53,7 +51,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every log <name> [-n N]\n"
+    "stderr": "usage: every log \u003cname\u003e [-n N]\n"
   },
   {
     "argv": [
@@ -61,7 +59,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every rm <name>\n"
+    "stderr": "usage: every rm \u003cname\u003e\n"
   },
   {
     "argv": [
@@ -69,7 +67,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every rm <name>\n"
+    "stderr": "usage: every rm \u003cname\u003e\n"
   },
   {
     "argv": [
@@ -77,7 +75,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every pause <name>\n"
+    "stderr": "usage: every pause \u003cname\u003e\n"
   },
   {
     "argv": [
@@ -85,7 +83,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every resume <name>\n"
+    "stderr": "usage: every resume \u003cname\u003e\n"
   },
   {
     "argv": [
@@ -93,7 +91,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every run <name>\n"
+    "stderr": "usage: every run \u003cname\u003e\n"
   },
   {
     "argv": [
@@ -234,7 +232,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"frobnicate\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"frobnicate\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -242,7 +240,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"15m\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"15m\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -251,7 +249,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"day\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"day\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -659,7 +657,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"--json\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"--json\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -740,7 +738,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every log <name> [-n N]\n"
+    "stderr": "usage: every log \u003cname\u003e [-n N]\n"
   },
   {
     "argv": [
@@ -757,7 +755,7 @@
       "extra"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log <name> [-n N]   output of recent runs\n  every run <name>          run it right now (prints output, logs too)\n  every pause <name>        stop scheduling (keeps the task)\n  every resume <name>       start again\n  every rm <name>           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -786,7 +784,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"--nonsense\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"--nonsense\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -794,7 +792,7 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"-x\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"-x\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -802,6 +800,258 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "every: \"--json\" isn't a command, and there's no `--` before a task.\n  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+    "stderr": "every: \"--json\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "inspect"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every inspect \u003cname\u003e\n"
+  },
+  {
+    "argv": [
+      "inspect",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "inspect",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"no task \\\"nosuch\\\"\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "exists"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "usage: every exists \u003cname\u003e\n"
+  },
+  {
+    "argv": [
+      "exists",
+      "nosuch"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "set"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: set \u003cwhen\u003e -- \u003ccommand\u003e\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "set",
+      "15m"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: set \u003cwhen\u003e --name \u003cname\u003e -- \u003ccommand\u003e   (the `--` separates them)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "set",
+      "15m",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: set needs --name (it identifies which task to update)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "set",
+      "banana",
+      "--name",
+      "x",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: cannot parse schedule \"banana\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "set",
+      "15m",
+      "--name",
+      "",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --name \"\" is empty after sanitizing (names allow a-z 0-9 . _ -)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "schema"
+    ],
+    "exit": 0,
+    "stdout": "{\"add\":{\"properties\":{\"command\":{\"type\":\"string\"},\"created_at\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"entries\":{\"items\":{\"properties\":{\"hour\":{\"type\":\"integer\"},\"minute\":{\"type\":\"integer\"},\"weekday\":{\"properties\":null,\"type\":[\"integer\",\"null\"]}},\"required\":[\"hour\",\"minute\"],\"type\":\"object\"},\"type\":\"array\"},\"interval_seconds\":{\"properties\":null,\"type\":[\"integer\",\"null\"]},\"kind\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"on_fail\":{\"type\":\"string\"},\"paused\":{\"type\":\"boolean\"},\"quiet\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"},\"timeout\":{\"type\":\"integer\"},\"unit_path\":{\"type\":\"string\"}},\"required\":[\"command\",\"created_at\",\"cwd\",\"kind\",\"name\",\"paused\",\"quiet\",\"schedule\",\"scheduled\",\"status\",\"timeout\",\"unit_path\"],\"type\":\"object\"},\"doctor\":{\"properties\":{\"checks\":{\"items\":{\"properties\":{\"fix\":{\"type\":\"string\"},\"label\":{\"type\":\"string\"},\"ok\":{\"type\":\"boolean\"},\"task\":{\"type\":\"string\"}},\"required\":[\"label\",\"ok\"],\"type\":\"object\"},\"type\":\"array\"},\"ok\":{\"type\":\"boolean\"},\"problems\":{\"type\":\"integer\"}},\"required\":[\"checks\",\"ok\",\"problems\"],\"type\":\"object\"},\"error\":{\"properties\":{\"error\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}},\"required\":[\"error\",\"message\"],\"type\":\"object\"},\"inspect\":{\"properties\":{\"command\":{\"type\":\"string\"},\"created_at\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"entries\":{\"items\":{\"properties\":{\"hour\":{\"type\":\"integer\"},\"minute\":{\"type\":\"integer\"},\"weekday\":{\"properties\":null,\"type\":[\"integer\",\"null\"]}},\"required\":[\"hour\",\"minute\"],\"type\":\"object\"},\"type\":\"array\"},\"interval_seconds\":{\"properties\":null,\"type\":[\"integer\",\"null\"]},\"kind\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"on_fail\":{\"type\":\"string\"},\"paused\":{\"type\":\"boolean\"},\"quiet\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"},\"timeout\":{\"type\":\"integer\"},\"unit_path\":{\"type\":\"string\"}},\"required\":[\"command\",\"created_at\",\"cwd\",\"kind\",\"name\",\"paused\",\"quiet\",\"schedule\",\"scheduled\",\"status\",\"timeout\",\"unit_path\"],\"type\":\"object\"},\"list\":{\"items\":{\"properties\":{\"command\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"paused\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"}},\"required\":[\"command\",\"name\",\"paused\",\"schedule\",\"scheduled\",\"status\"],\"type\":\"object\"},\"type\":\"array\"},\"log\":{\"properties\":{\"entries\":{\"items\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"output\":{\"type\":\"string\"},\"output_b64\":{\"type\":\"string\"},\"seconds\":{\"type\":\"number\"}},\"required\":[\"at\",\"exit\",\"seconds\"],\"type\":\"object\"},\"type\":\"array\"},\"name\":{\"type\":\"string\"}},\"required\":[\"entries\",\"name\"],\"type\":\"object\"},\"pause\":{\"properties\":{\"name\":{\"type\":\"string\"},\"ok\":{\"type\":\"boolean\"}},\"required\":[\"name\",\"ok\"],\"type\":\"object\"},\"resume\":{\"properties\":{\"name\":{\"type\":\"string\"},\"ok\":{\"type\":\"boolean\"}},\"required\":[\"name\",\"ok\"],\"type\":\"object\"},\"rm\":{\"properties\":{\"name\":{\"type\":\"string\"},\"ok\":{\"type\":\"boolean\"}},\"required\":[\"name\",\"ok\"],\"type\":\"object\"},\"run\":{\"properties\":{\"at\":{\"type\":\"string\"},\"dry_run\":{\"type\":\"boolean\"},\"exit\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"},\"output\":{\"type\":\"string\"},\"plan\":{\"properties\":{\"command\":{\"type\":\"string\"},\"directory\":{\"type\":\"string\"},\"note\":{\"type\":\"string\"},\"on_fail\":{\"type\":\"string\"},\"shell\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"timeout_seconds\":{\"type\":\"integer\"}},\"type\":[\"object\",\"null\"]},\"seconds\":{\"type\":\"number\"}},\"required\":[\"at\",\"exit\",\"name\",\"seconds\"],\"type\":\"object\"},\"set\":{\"properties\":{\"command\":{\"type\":\"string\"},\"created_at\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"entries\":{\"items\":{\"properties\":{\"hour\":{\"type\":\"integer\"},\"minute\":{\"type\":\"integer\"},\"weekday\":{\"properties\":null,\"type\":[\"integer\",\"null\"]}},\"required\":[\"hour\",\"minute\"],\"type\":\"object\"},\"type\":\"array\"},\"interval_seconds\":{\"properties\":null,\"type\":[\"integer\",\"null\"]},\"kind\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"on_fail\":{\"type\":\"string\"},\"paused\":{\"type\":\"boolean\"},\"quiet\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"},\"timeout\":{\"type\":\"integer\"},\"unit_path\":{\"type\":\"string\"}},\"required\":[\"command\",\"created_at\",\"cwd\",\"kind\",\"name\",\"paused\",\"quiet\",\"schedule\",\"scheduled\",\"status\",\"timeout\",\"unit_path\"],\"type\":\"object\"},\"version\":{\"properties\":{\"homepage\":{\"type\":\"string\"},\"tagline\":{\"type\":\"string\"},\"version\":{\"type\":\"string\"}},\"required\":[\"homepage\",\"tagline\",\"version\"],\"type\":\"object\"}}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "schema",
+      "list"
+    ],
+    "exit": 0,
+    "stdout": "{\"items\":{\"properties\":{\"command\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"paused\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"}},\"required\":[\"command\",\"name\",\"paused\",\"schedule\",\"scheduled\",\"status\"],\"type\":\"object\"},\"type\":\"array\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "schema",
+      "inspect"
+    ],
+    "exit": 0,
+    "stdout": "{\"properties\":{\"command\":{\"type\":\"string\"},\"created_at\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"entries\":{\"items\":{\"properties\":{\"hour\":{\"type\":\"integer\"},\"minute\":{\"type\":\"integer\"},\"weekday\":{\"properties\":null,\"type\":[\"integer\",\"null\"]}},\"required\":[\"hour\",\"minute\"],\"type\":\"object\"},\"type\":\"array\"},\"interval_seconds\":{\"properties\":null,\"type\":[\"integer\",\"null\"]},\"kind\":{\"type\":\"string\"},\"last\":{\"properties\":{\"at\":{\"type\":\"string\"},\"exit\":{\"type\":\"integer\"},\"seconds\":{\"type\":\"number\"}},\"type\":[\"object\",\"null\"]},\"name\":{\"type\":\"string\"},\"next\":{\"properties\":null,\"type\":[\"string\",\"null\"]},\"on_fail\":{\"type\":\"string\"},\"paused\":{\"type\":\"boolean\"},\"quiet\":{\"type\":\"boolean\"},\"schedule\":{\"type\":\"string\"},\"scheduled\":{\"type\":\"boolean\"},\"status\":{\"type\":\"string\"},\"timeout\":{\"type\":\"integer\"},\"unit_path\":{\"type\":\"string\"}},\"required\":[\"command\",\"created_at\",\"cwd\",\"kind\",\"name\",\"paused\",\"quiet\",\"schedule\",\"scheduled\",\"status\",\"timeout\",\"unit_path\"],\"type\":\"object\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "schema",
+      "error"
+    ],
+    "exit": 0,
+    "stdout": "{\"properties\":{\"error\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}},\"required\":[\"error\",\"message\"],\"type\":\"object\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "schema",
+      "nosuch"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: no schema for \"nosuch\" (have: add, doctor, error, inspect, list, log, pause, resume, rm, run, set, version)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "version",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"version\":\"$VERSION\",\"tagline\":\"humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\",\"homepage\":\"https://github.com/serhiileniv/every\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_logs\",\"message\":\"no logs yet for \\\"nosuch\\\" (has it run? check: every list)\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "rm",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"no task \\\"nosuch\\\"\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "pause",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"no task \\\"nosuch\\\"\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "resume",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"no task \\\"nosuch\\\"\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "run",
+      "nosuch",
+      "--json"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"unknown task \\\"nosuch\\\" — orphaned agent? try: every doctor\",\"name\":\"nosuch\"}\n"
+  },
+  {
+    "argv": [
+      "run",
+      "nosuch",
+      "--dry-run"
+    ],
+    "exit": 66,
+    "stdout": "",
+    "stderr": "every: no task \"nosuch\"\n"
+  },
+  {
+    "argv": [
+      "doctor",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"ok\":true,\"problems\":0,\"checks\":[{\"label\":\"launchd user session reachable (gui/501)\",\"ok\":true},{\"label\":\"data dir writable ($EVERY_HOME)\",\"ok\":true}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "banana",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: cannot parse schedule \"banana\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--timeout",
+      "0s",
+      "--json",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"bad_duration\",\"message\":\"--timeout must be greater than 0\"}\n"
   }
 ]

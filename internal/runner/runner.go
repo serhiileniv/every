@@ -35,6 +35,27 @@ type Runner struct {
 
 	env  func(string) string
 	goos string
+
+	// Quiet suppresses the interactive echo of a run's output. Set when the
+	// caller is rendering JSON: stdout carries the object, and the output
+	// belongs inside it rather than printed alongside.
+	Quiet bool
+
+	// LastOutput is what the most recent Run captured, so a caller can put it
+	// in a structured response without reading the log back.
+	LastOutput []byte
+}
+
+// Workdir resolves where a task would run, and any note about why it moved.
+// Exported for `run --dry-run`, which reports the decision without making it.
+func (r *Runner) Workdir(cwd string) (string, string) { return r.workdir(cwd) }
+
+// ShellFor is the shell a command would be run through on this platform.
+func (r *Runner) ShellFor() []string {
+	if r.goos == "windows" {
+		return r.WindowsShell()
+	}
+	return r.LoginShell()
 }
 
 // New builds a Runner for the real process environment.
@@ -99,13 +120,18 @@ func (r *Runner) Run(name string) (int, error) {
 	if err := r.appendRun(name, started, res.ExitCode, duration); err != nil {
 		return 1, err
 	}
-	if res.ExitCode != 0 && !task.Quiet {
-		r.notifyFailure(name, res.ExitCode)
+	if res.ExitCode != 0 {
+		if !task.Quiet {
+			r.notifyFailure(name, res.ExitCode)
+		}
+		r.runOnFail(name, task, res.ExitCode)
 	}
+
+	r.LastOutput = out
 
 	// A scheduled run has no terminal, so it prints nothing; an interactive
 	// `every run` echoes what happened.
-	if r.Color.Enabled {
+	if r.Color.Enabled && !r.Quiet {
 		r.Stdout.Write(out)
 		summary := fmt.Sprintf("— exit %d in %ss (logged: every log %s)",
 			res.ExitCode, store.Duration(duration), name)
@@ -122,6 +148,13 @@ func (r *Runner) Run(name string) (int, error) {
 // capture runs the command, merging stdout and stderr, bounding the output and
 // enforcing the timeout.
 func (r *Runner) capture(cmd, dir string, timeout time.Duration) (Result, error) {
+	return r.captureWithEnv(cmd, dir, timeout, nil)
+}
+
+// captureWithEnv is capture with extra environment entries, for the on-fail
+// callback -- which needs to be told which task failed without that being
+// interpolated into a shell command.
+func (r *Runner) captureWithEnv(cmd, dir string, timeout time.Duration, extraEnv []string) (Result, error) {
 	argv, cleanup, err := r.commandArgv(cmd)
 	if err != nil {
 		return Result{}, err
@@ -130,6 +163,9 @@ func (r *Runner) capture(cmd, dir string, timeout time.Duration) (Result, error)
 
 	c := exec.Command(argv[0], argv[1:]...)
 	c.Dir = dir
+	if len(extraEnv) > 0 {
+		c.Env = append(os.Environ(), extraEnv...)
+	}
 
 	// One pipe for both streams, so interleaving is preserved exactly as the
 	// command produced it. Two pipes plus a merging goroutine would not.

@@ -125,3 +125,22 @@ func trimRuns(path string) error {
 	// otherwise silently drop the freshly written trimmed ledger.
 	return os.Rename(tmp, path)
 }
+
+// appendLogRaw appends text to a task's log without a run header.
+//
+// Used by the on-fail callback, whose output belongs beside the failure that
+// triggered it rather than in a file of its own. Rotation still applies, so a
+// noisy callback cannot grow the log past its cap either.
+func (r *Runner) appendLogRaw(name, text string) error {
+	path := filepath.Join(r.Dirs.Logs, name+".log")
+	if err := rotate(path); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(text)
+	return err
+}
