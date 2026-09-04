@@ -13,7 +13,7 @@ import "fmt"
 // produced the binary rather than a constant somebody forgot to bump. It is a
 // var, not a const, for exactly that reason -- the linker cannot rewrite a
 // const. The fallback value is what a plain `go build` reports.
-var Version = "0.5.0"
+var Version = "0.5.1"
 
 // Tagline and Homepage identify the tool in `version` and `help`.
 const (

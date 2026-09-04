@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.1 — 2026-09-04
+
+Installer fixes, all Windows-only. Nothing in `every` itself changed.
+
+Found by a new CI test that pipes the installers the way the README tells you
+to run them. None of these were reachable by running the script from a
+checkout, which is how they survived 0.5.0.
+
+### Fixed
+
+- **Checksum verification never ran.** GitHub serves release assets as
+  `application/octet-stream`, and PowerShell returns a byte array rather than a
+  string for a non-text content type — so the lookup matched nothing and the
+  script warned "not listed in checksums.txt" and installed anyway. A checksum
+  that never runs is worse than none, because it looks like one ran. An archive
+  missing from a `checksums.txt` that did download is now a hard failure.
+- **The post-install check failed on success.** Piping a native command into
+  `Select-Object -First 1` stops the pipeline, terminating the process early
+  and leaving a non-zero exit code — so a working install reported
+  `installed, but 'every.exe version' failed` and printed the correct version
+  underneath. A race, so it broke installs intermittently.
+- **`irm … | iex` crashed immediately.** Piped, there is no script file, and
+  `$PSCommandPath` is empty; `Split-Path` threw before anything was installed.
+
+### Changed
+
+- The README gives one command per platform. `curl | sh` covers macOS and
+  Linux — it always worked on macOS, the README just did not say so — and
+  Windows gets the `irm | iex` equivalent. Homebrew stays as an option for
+  people who want `brew upgrade`.
+
 ## 0.5.0 — 2026-09-04
 
 Two pieces of work, released together because the first was never published on
