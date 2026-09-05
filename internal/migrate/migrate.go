@@ -125,7 +125,7 @@ func repair(b backend.Backend, name string, task *store.Task) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if current == fresh {
+	if sameUnit(b, current, fresh) {
 		return false, nil
 	}
 
@@ -153,6 +153,28 @@ func currentUnit(b backend.Backend, name string) (string, error) {
 		return "", err
 	}
 	return string(raw), nil
+}
+
+// sameUnit reports whether the unit on disk is what this version would write.
+//
+// A backend may store its unit in an encoding of its own, or embed a field that
+// cannot survive being rendered twice -- Task Scheduler does both. Where it
+// says so, both sides are reduced before comparing; everywhere else the
+// comparison stays byte-for-byte.
+//
+// Getting this wrong is not cosmetic. A backend whose unit never compares equal
+// is re-registered on every migration pass, and for a scheduler that derives an
+// interval trigger's phase from the moment of registration, that pushes the
+// next run back each time -- far enough, often enough, and the task stops
+// firing at all while still reporting ok.
+func sameUnit(b backend.Backend, current, fresh string) bool {
+	type canonicalizer interface {
+		CanonicalUnit(unit string) string
+	}
+	if c, ok := b.(canonicalizer); ok {
+		return c.CanonicalUnit(current) == c.CanonicalUnit(fresh)
+	}
+	return current == fresh
 }
 
 // freshUnit renders what this version would write, without touching the

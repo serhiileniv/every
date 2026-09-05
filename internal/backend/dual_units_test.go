@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unicode/utf16"
 
 	"github.com/serhiileniv/every/internal/schedule"
 )
@@ -353,18 +351,14 @@ func TestEveryTaskXMLEncodesAndDecodesLosslessly(t *testing.T) {
 		if len(raw)%2 != 0 {
 			t.Fatalf("%s: odd byte count, so it is not whole UTF-16 code units", spec.Slug)
 		}
-		if decoded := decodeUTF16(raw); decoded != xml {
+		decoded, hadBOM := decodeUTF16(string(raw))
+		if !hadBOM {
+			t.Fatalf("%s: the encoded file carries no UTF-16LE BOM", spec.Slug)
+		}
+		if decoded != xml {
 			t.Fatalf("%s: the encoded file does not decode back to its source", spec.Slug)
 		}
 		checked++
 	}
 	t.Logf("encoded and decoded %d task XML files losslessly", checked)
-}
-
-func decodeUTF16(raw []byte) string {
-	units := make([]uint16, 0, (len(raw)-2)/2)
-	for i := 2; i+1 < len(raw); i += 2 {
-		units = append(units, binary.LittleEndian.Uint16(raw[i:i+2]))
-	}
-	return string(utf16.Decode(units))
 }

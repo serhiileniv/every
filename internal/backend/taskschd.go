@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -400,13 +401,55 @@ func (w *TaskScheduler) SchedulerStatus() (string, error) {
 
 // Render returns the task XML.
 //
-// Note this is compared against the UTF-16 file on disk, so the migration's
-// caller reads that back as text; see internal/migrate. The StartBoundary is
-// clock-derived and therefore always differs, which means a Windows task is
-// rewritten on every migration pass rather than only when stale. That is
-// acceptable -- the pass runs once per version change, guarded by the stamp --
-// and the alternative is comparing everything except one element, which would
-// silently stop noticing real drift.
+// It is compared against the file on disk to decide whether a unit is stale;
+// see internal/migrate. Two things make that comparison a lie unless it goes
+// through CanonicalUnit first, so it does.
 func (w *TaskScheduler) Render(name string, s *schedule.Schedule) (string, error) {
 	return w.TaskXML(name, s)
+}
+
+// startBoundaryRe matches a whole StartBoundary element, value and all.
+var startBoundaryRe = regexp.MustCompile(`(?s)<StartBoundary>.*?</StartBoundary>`)
+
+// CanonicalUnit reduces a unit to the parts worth comparing.
+//
+// It undoes the two differences that are guaranteed rather than meaningful:
+//
+// The file on disk is UTF-16LE with a BOM, because that is what schtasks
+// requires (see writeUTF16); Render returns UTF-8. Compared raw, the two never
+// match, so every task looked stale forever.
+//
+// StartBoundary is clock-derived -- now+interval for an interval task -- so a
+// second render a moment later differs even when nothing changed. Blanking it
+// is narrow on purpose: the interval itself, the trigger kind, the recurrence,
+// the command, the user and every setting are still compared byte-for-byte, so
+// real drift is still caught. Only the one field that cannot carry meaning
+// across two renders is dropped.
+//
+// The pair of them together are what starved interval tasks. The stamp in
+// internal/migrate includes the store's mtime, so a repair pass runs after
+// every write -- and each pass re-registered every task, resetting each
+// interval trigger's phase to now+interval. Writing the store more often than a
+// task's interval meant its next run was pushed back faster than it arrived,
+// and it simply stopped firing while `every list` still reported it ok.
+func (w *TaskScheduler) CanonicalUnit(unit string) string {
+	if decoded, ok := decodeUTF16(unit); ok {
+		unit = decoded
+	}
+	return startBoundaryRe.ReplaceAllString(unit, "<StartBoundary></StartBoundary>")
+}
+
+// decodeUTF16 reverses writeUTF16. The bool reports whether the input actually
+// carried the BOM, so anything else is passed through untouched.
+func decodeUTF16(s string) (string, bool) {
+	b := []byte(s)
+	if len(b) < 2 || b[0] != 0xFF || b[1] != 0xFE || len(b)%2 != 0 {
+		return s, false
+	}
+	b = b[2:]
+	units := make([]uint16, 0, len(b)/2)
+	for i := 0; i < len(b); i += 2 {
+		units = append(units, binary.LittleEndian.Uint16(b[i:]))
+	}
+	return string(utf16.Decode(units)), true
 }
