@@ -172,10 +172,62 @@ func expandUser(p string) string {
 
 func commandResolves(word string) bool {
 	if runtime.GOOS == "windows" {
-		return exec.Command("where.exe", word).Run() == nil
+		return windowsCommandResolves(word)
 	}
 	_, err := exec.LookPath(word)
 	return err == nil
+}
+
+// cmdBuiltins are cmd.exe's internal commands.
+//
+// They are not files anywhere on disk, so where.exe cannot find them and the
+// check reported a perfectly working task as broken. `echo` is the one that
+// mattered: the installer's own closing hint is
+//
+//	every day 9am -- echo it ran
+//
+// so the first task a new Windows user scheduled made `every doctor` print a
+// problem and exit 1, directly above a "last run ok" for the same task.
+//
+// From `help` in cmd.exe, minus the ones that cannot begin a useful task.
+var cmdBuiltins = map[string]bool{
+	"assoc": true, "break": true, "call": true, "cd": true, "chdir": true,
+	"cls": true, "color": true, "copy": true, "date": true, "del": true,
+	"dir": true, "dpath": true, "echo": true, "endlocal": true, "erase": true,
+	"exit": true, "for": true, "ftype": true, "goto": true, "if": true,
+	"md": true, "mkdir": true, "mklink": true, "move": true, "path": true,
+	"pause": true, "popd": true, "prompt": true, "pushd": true, "rd": true,
+	"rem": true, "ren": true, "rename": true, "rmdir": true, "set": true,
+	"setlocal": true, "shift": true, "start": true, "time": true,
+	"title": true, "type": true, "ver": true, "verify": true, "vol": true,
+}
+
+// windowsCommandResolves asks whichever shell the task will actually use.
+//
+// EVERY_SHELL can point at PowerShell, and then the question is a different
+// one: `Write-Output` is not a file either, and `echo` resolves as an alias
+// rather than as a builtin. Asking the wrong shell gives a confidently wrong
+// answer, which is worse than no check at all.
+func windowsCommandResolves(word string) bool {
+	shell := os.Getenv("EVERY_SHELL")
+	if shell == "" {
+		shell = os.Getenv("COMSPEC")
+	}
+	base := strings.ToLower(filepath.Base(shell))
+	base = strings.TrimSuffix(base, ".exe")
+
+	if base == "powershell" || base == "pwsh" {
+		// Single-quoted, quotes doubled: -Command takes one string, and the
+		// word comes from the user's own task.
+		lit := "'" + strings.ReplaceAll(word, "'", "''") + "'"
+		return exec.Command(shell, "-NoLogo", "-NoProfile", "-NonInteractive",
+			"-Command", "Get-Command -Name "+lit+" -ErrorAction Stop").Run() == nil
+	}
+
+	if cmdBuiltins[strings.ToLower(word)] {
+		return true
+	}
+	return exec.Command("where.exe", word).Run() == nil
 }
 
 // doctorCwd warns about the macOS privacy folders, where a scheduler-spawned

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  every — installer for native Windows.
+  every -- installer for native Windows.
 
 .DESCRIPTION
   Downloads one static every.exe for this platform, verifies it against the
@@ -92,7 +92,7 @@ if ($Uninstall) {
 $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
   "AMD64" { "amd64" }
   "ARM64" { "arm64" }
-  "x86"   { Die "32-bit Windows is not supported — every ships amd64 and arm64" }
+  "x86"   { Die "32-bit Windows is not supported -- every ships amd64 and arm64" }
   default { Die "unsupported architecture: $($env:PROCESSOR_ARCHITECTURE)" }
 }
 
@@ -135,7 +135,7 @@ try {
           -Uri "https://api.github.com/repos/$repo/releases/latest"
         $Version = $latest.tag_name
       } catch {
-        Die "couldn't resolve the latest release (rate-limited or offline) — retry with -Version X.Y.Z"
+        Die "couldn't resolve the latest release (rate-limited or offline) -- retry with -Version X.Y.Z"
       }
     }
     $Version = $Version -replace '^v',''
@@ -147,7 +147,7 @@ try {
     try {
       Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
     } catch {
-      Die "download failed: $url`nIf v$Version predates 0.4.0 it has no binaries — those releases installed from source."
+      Die "download failed: $url`nIf v$Version predates 0.4.0 it has no binaries -- those releases installed from source."
     }
 
     # Verify against the release checksums. A truncated or tampered download
@@ -166,7 +166,7 @@ try {
         -Uri "https://github.com/$repo/releases/download/v$Version/checksums.txt"
     } catch {
       $haveSums = $false
-      Write-Warning "no checksums.txt for v$Version — skipping verification"
+      Write-Warning "no checksums.txt for v$Version -- skipping verification"
     }
 
     if ($haveSums) {
@@ -180,7 +180,7 @@ try {
       if (-not $expected) {
         # The file exists and this archive is not in it. That is not a release
         # too old to have checksums; it is a mismatch worth stopping for.
-        Die "$name is not listed in checksums.txt for v$Version — refusing to install an unverified download"
+        Die "$name is not listed in checksums.txt for v$Version -- refusing to install an unverified download"
       }
       $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
       if ($actual -ne $expected.ToLower()) {
