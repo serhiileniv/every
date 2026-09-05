@@ -400,6 +400,28 @@ func (c *CLI) resetHistory(name string) error {
 	return nil
 }
 
+// noLogsError separates a task that has not run yet from a name that is not a
+// task at all.
+//
+// Both are exit 66 and both used to say "no logs yet for X (has it run?)",
+// which is a confusing answer to give someone who simply mistyped the name --
+// and unlike every other command, it left a program unable to tell the two
+// apart, since the code was no_logs either way.
+//
+// The check is only reached once there are no logs, which is what keeps the
+// original reason for not consulting the store intact: logs outlive the task
+// that made them, `every rm` keeps them on purpose, and reading the log of a
+// removed task still works.
+func (c *CLI) noLogsError(name string) error {
+	if s, err := store.Load(c.Dirs.Data); err == nil {
+		if _, ok := s.Tasks.Get(name); !ok {
+			return noInputCoded(CodeNoSuchTask, name, "no task %s", rubyInspect(name))
+		}
+	}
+	return noInputCoded(CodeNoLogs, name,
+		"no logs yet for %s (has it run? check: every list)", rubyInspect(name))
+}
+
 func (c *CLI) log(args []string) error {
 	args, asJSON := stripJSONFlag(args)
 	args, withOutput := removeFlag(args, "--with-output")
@@ -428,7 +450,7 @@ func (c *CLI) log(args []string) error {
 
 	path := c.Dirs.Logs + "/" + name + ".log"
 	if _, err := os.Stat(path); err != nil {
-		return noInputCoded(CodeNoLogs, name, "no logs yet for %s (has it run? check: every list)", rubyInspect(name))
+		return c.noLogsError(name)
 	}
 	lines, err := tailLines(path, n)
 	if err != nil {

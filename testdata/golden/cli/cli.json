@@ -100,7 +100,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -147,7 +147,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -158,7 +158,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -169,7 +169,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -180,7 +180,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -695,7 +695,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -706,7 +706,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -717,7 +717,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -728,7 +728,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "every: no logs yet for \"nosuch\" (has it run? check: every list)\n"
+    "stderr": "every: no task \"nosuch\"\n"
   },
   {
     "argv": [
@@ -970,7 +970,7 @@
     ],
     "exit": 66,
     "stdout": "",
-    "stderr": "{\"error\":\"no_logs\",\"message\":\"no logs yet for \\\"nosuch\\\" (has it run? check: every list)\",\"name\":\"nosuch\"}\n"
+    "stderr": "{\"error\":\"no_such_task\",\"message\":\"no task \\\"nosuch\\\"\",\"name\":\"nosuch\"}\n"
   },
   {
     "argv": [
