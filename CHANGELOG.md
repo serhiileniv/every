@@ -28,6 +28,18 @@ moment.
 - `every inspect --json` carries `at` for a once task; `every list` shows the
   instant in NEXT.
 
+### Fixed
+
+- **`every doctor` said "command resolvable in login shell" for commands the
+  scheduler could not find.** It looked the command up on the PATH of the
+  terminal doctor was typed into, which is the one PATH a scheduled run never
+  has. Found by scheduling `claude -p …`: the pre-flight `every run` passed,
+  every launchd fire exited 127, and doctor saw nothing wrong, because the
+  `PATH` line was in `~/.zshrc` and a login shell reads `~/.zprofile`. Doctor
+  now probes through the runner's login shell with a scheduler-like
+  environment, and when the command exists in the terminal but not there, says
+  so and names the file to move the line to.
+
 ## 0.5.1 — 2026-09-04
 
 Installer fixes, all Windows-only. Nothing in `every` itself changed.

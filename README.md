@@ -185,6 +185,12 @@ Follows `sysexits.h`, so scripts can branch on `$?`:
   would at a prompt — wrap the whole thing in one quoted string when in doubt:
   `every day 9am -- 'pg_dump db | gzip > ~/backup.gz'`,
   `every 1h -- 'touch "my file.txt"'`.
+- **PATH is the login shell's, not your terminal's.** Scheduled runs go through
+  `zsh -l` / `bash -l`, which read `~/.zprofile` / `~/.bash_profile` — not
+  `~/.zshrc`. A `PATH` line that lives only in `~/.zshrc` works when you type
+  the command and fails under the scheduler with `command not found`.
+  `every doctor` probes in a clean login shell and tells you which file to move
+  the line to.
 - **One-shots** land on a whole minute (launchd calendar triggers have no
   seconds), so `once 90s` means "the next whole minute at least 90 s away". A
   one-shot the machine slept through fires on wake like any calendar task; one

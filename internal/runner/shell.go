@@ -14,12 +14,18 @@ import (
 // which kills one of the two classic scheduler traps. Only bash and zsh accept
 // the bundled -l; sh, dash and others reject it, so those get plain -c.
 func (r *Runner) LoginShell() []string {
-	if r.goos == "darwin" {
+	return r.LoginShellFor(r.goos, r.env("SHELL"))
+}
+
+// LoginShellFor is LoginShell as a pure function of platform and $SHELL, so
+// doctor can probe with exactly the shell a run will use.
+func (r *Runner) LoginShellFor(goos, shellEnv string) []string {
+	if goos == "darwin" {
 		// Hardcoded rather than $SHELL: launchd gives a task the same login
 		// shell every time regardless of what the user set interactively.
 		return []string{"/bin/zsh", "-lc"}
 	}
-	sh := r.env("SHELL")
+	sh := shellEnv
 	if sh == "" {
 		sh = "/bin/bash"
 	}
