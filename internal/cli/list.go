@@ -151,6 +151,12 @@ func (c *CLI) nextDisplay(sched *schedule.Schedule, last *store.Run) string {
 	}
 	next := sched.NextRun(c.Now())
 	if next.IsZero() {
+		// A once task still in the store after its moment was not fired --
+		// the machine was off across it, most likely. launchd will not catch
+		// it up, so say so rather than print a question mark.
+		if sched.Kind == schedule.Once {
+			return "missed"
+		}
 		return "?"
 	}
 	return next.Format("02 Jan 15:04")

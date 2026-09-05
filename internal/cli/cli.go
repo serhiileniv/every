@@ -272,7 +272,9 @@ func (c *CLI) parseAddSpec(argv []string, verb string) (*addSpec, error) {
 		spec.onFail = onFail
 	}
 
-	sched, err := schedule.Parse(pre)
+	// The CLI clock, not the wall clock: a once schedule resolves "9am" to
+	// today or tomorrow against it, and tests pin it.
+	sched, err := schedule.ParseAt(pre, c.Now())
 	if err != nil {
 		return nil, &usageError{msg: err.Error(), code: CodeBadSchedule}
 	}
@@ -542,6 +544,12 @@ func (c *CLI) resume(args []string) error {
 	if err != nil {
 		return err
 	}
+	// A one-shot whose moment has passed has nothing to resume into: launchd
+	// would register it for the same date next year.
+	if sched.Kind == schedule.Once && !sched.At.After(c.Now()) {
+		return usagef("%s was due %s and has passed — remove it and re-add: every rm %s",
+			name, sched.At.Format("Mon 02 Jan 15:04"), rubyInspect(name))
+	}
 	if err := c.schedule(name, sched); err != nil {
 		return err
 	}
@@ -601,10 +609,14 @@ func (c *CLI) runTask(name string, asJSON bool) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := s.Tasks.Get(name); !ok {
+	task, ok := s.Tasks.Get(name)
+	if !ok {
 		return noInputCoded(CodeNoSuchTask, name,
 			"unknown task %s — orphaned agent? try: every doctor", rubyInspect(name))
 	}
+	// Read before the run: the store may change underneath a long command,
+	// and retire re-checks under the lock anyway.
+	onceAt, isOnce := onceInstant(task)
 
 	r := runner.New(c.Dirs, c.Stdout, c.Stderr, c.Color)
 	if asJSON {
@@ -634,10 +646,69 @@ func (c *CLI) runTask(name string, asJSON bool) error {
 		}
 	}
 
+	// A one-shot that has had its moment is done, whatever the exit code:
+	// the failure is in the ledger and the notification has gone out. Gated
+	// on the instant rather than on the run, so `every run` typed beforehand
+	// to check the command works does not consume the task.
+	if isOnce && !c.Now().Before(onceAt) {
+		c.retire(name, onceAt, asJSON || !c.Color.Enabled)
+	}
+
 	if code != 0 {
 		return &exitError{code: code, errorCode: CodeInternal, name: name}
 	}
 	return nil
+}
+
+// onceInstant is the instant of a once task, and whether it is one.
+func onceInstant(task *store.Task) (time.Time, bool) {
+	if task.Schedule.Kind != string(schedule.Once) {
+		return time.Time{}, false
+	}
+	sched, err := schedule.FromRecord(task.Schedule)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return sched.At, true
+}
+
+// retire removes a fired once task: from the store first, then from the
+// scheduler, in that order and with nothing after.
+//
+// The store is re-read under the lock rather than reusing the pre-run copy,
+// which is stale by the width of the run: a `set` in the meantime may have
+// turned the name into a different task, which must survive. The scheduler
+// step is last and best-effort because on launchd it ends this process (see
+// backend.Retirer), so everything the user can see is already written.
+func (c *CLI) retire(name string, at time.Time, quiet bool) {
+	lock, err := store.AcquireLock(c.Dirs.Data)
+	if err != nil {
+		return
+	}
+	s, err := store.Load(c.Dirs.Data)
+	if err != nil {
+		lock.Close()
+		return
+	}
+	task, ok := s.Tasks.Get(name)
+	if !ok {
+		lock.Close()
+		return
+	}
+	if cur, isOnce := onceInstant(task); !isOnce || !cur.Equal(at) {
+		lock.Close()
+		return
+	}
+	if err := s.Remove(name); err != nil {
+		lock.Close()
+		return
+	}
+	lock.Close()
+
+	if !quiet {
+		fmt.Fprintf(c.Stdout, "%s ran once, removed %s (logs kept in %s)\n", c.Color.Green("✓"), name, c.Dirs.Logs)
+	}
+	_ = backend.Retire(c.Backend, name)
 }
 
 // runDryRun resolves everything a run needs and executes nothing.

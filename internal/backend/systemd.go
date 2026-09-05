@@ -107,9 +107,20 @@ func (s *Systemd) TimerUnit(name string, sched *schedule.Schedule) string {
 
 // CalendarLines renders each entry as a systemd OnCalendar expression.
 func CalendarLines(sched *schedule.Schedule) []string {
+	if sched.Kind == schedule.Once {
+		// A fully qualified date: systemd fires it once and reports the timer
+		// as elapsed; the task then retires itself.
+		return []string{sched.At.Format("2006-01-02 15:04:05")}
+	}
 	out := make([]string, 0, len(sched.Entries))
 	for _, e := range sched.Entries {
 		t := fmt.Sprintf("%02d:%02d:00", e.Hour, e.Minute)
+		if e.Day != nil {
+			// *-*-31 simply does not match a 30-day month, which is the same
+			// skip launchd and Task Scheduler perform.
+			out = append(out, fmt.Sprintf("*-*-%02d %s", *e.Day, t))
+			continue
+		}
 		if e.Weekday != nil {
 			// The modulo clamps a legacy weekday 7 to Sunday rather than
 			// indexing past the end of the table.
@@ -152,6 +163,18 @@ func (s *Systemd) DeleteUnits(name string) error {
 	}
 	_, _ = s.systemctl("daemon-reload")
 	return nil
+}
+
+// Retire removes a once task from inside its own run: the rm ordering.
+// Stopping the timer cannot stop the service it already triggered (there is
+// no BindsTo), so this process survives it; and it must precede the delete,
+// because disabling a unit whose file is gone fails and leaves the elapsed
+// timer loaded until logout.
+func (s *Systemd) Retire(name string) error {
+	if err := s.Disable(name); err != nil {
+		return err
+	}
+	return s.DeleteUnits(name)
 }
 
 func (s *Systemd) Loaded(name string) bool {

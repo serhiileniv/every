@@ -44,6 +44,17 @@ Mon\-Fri / Sat+Sun
 .TP
 .IR WEEKDAY " " TIME
 weekly, e.g.\& \fBmonday 10:00\fR, \fBmonday,thursday 6pm\fR
+.TP
+.BI "monthly " DAYS " " TIME
+on those days of the month, e.g.\& \fBmonthly 1st 9am\fR, \fBmonthly 1,15 18:00\fR.
+Days 29\-31 skip months that lack them.
+.TP
+.BI "once " WHEN
+one time only, then the task removes itself (logs kept). \fIWHEN\fR is a time
+(\fBonce 15:30\fR: today, or tomorrow if that has passed), a day and a time
+(\fBonce tomorrow 9am\fR, \fBonce friday 5pm\fR, \fBonce 2026\-12\-24 18:00\fR),
+or a delay of at least a minute (\fBonce 45m\fR). Until its moment it is an
+ordinary task: \fBevery run\fR beforehand does not use it up.
 .SH COMMANDS
 .TP
 .B every \fIschedule\fR \-\- \fIcommand\fR
@@ -183,6 +194,8 @@ task registry and logs (native Windows)
 every day 9am \-\- brew update
 every 15m \-\- ~/bin/sync\-notes.sh
 every weekdays 9:30 \-\- ~/bin/standup\-prep.sh
+every monthly 1st 9am \-\- ~/bin/invoice.sh
+every once tomorrow 9am \-\- ~/bin/remind\-me.sh
 every list \-\-json | jq \-r '.[] | select(.status | test("FAIL")) | .name'
 .fi
 .SH SEE ALSO

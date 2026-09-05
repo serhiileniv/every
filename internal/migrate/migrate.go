@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/serhiileniv/every/internal/backend"
 	"github.com/serhiileniv/every/internal/naming"
@@ -105,6 +106,11 @@ func repair(b backend.Backend, name string, task *store.Task) (bool, error) {
 	sched, err := schedule.FromRecord(task.Schedule)
 	if err != nil {
 		return false, err
+	}
+	// A once task whose moment has passed is either about to retire itself
+	// or was missed. Re-registering it would arm launchd for next year.
+	if sched.Kind == schedule.Once && !sched.At.After(time.Now()) {
+		return false, nil
 	}
 
 	current, err := currentUnit(b, name)

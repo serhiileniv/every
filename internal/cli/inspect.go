@@ -34,6 +34,8 @@ type TaskView struct {
 	Entries   []schedule.Entry `json:"entries,omitempty"`
 	Interval  *int64           `json:"interval_seconds,omitempty"`
 	UnitPath  string           `json:"unit_path"`
+	// At is the instant of a once task, RFC 3339. Appended, per the rule above.
+	At *string `json:"at,omitempty"`
 }
 
 type runView struct {
@@ -155,6 +157,10 @@ func (c *CLI) taskView(name string) (*TaskView, error) {
 	if sched.Kind == schedule.Interval {
 		iv := sched.Interval.Int64()
 		view.Interval = &iv
+	}
+	if sched.Kind == schedule.Once {
+		at := sched.At.Format(time.RFC3339)
+		view.At = &at
 	}
 
 	var lastExit *int

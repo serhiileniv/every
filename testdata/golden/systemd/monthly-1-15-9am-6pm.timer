@@ -1,0 +1,13 @@
+[Unit]
+Description=every timer monthly-1-15-9am-6pm
+
+[Timer]
+AccuracySec=1s
+OnCalendar=*-*-01 09:00:00
+OnCalendar=*-*-01 18:00:00
+OnCalendar=*-*-15 09:00:00
+OnCalendar=*-*-15 18:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

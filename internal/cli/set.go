@@ -171,6 +171,10 @@ func (c *CLI) taskViewFrom(s *store.Store, name string, task *store.Task) (*Task
 		iv := sched.Interval.Int64()
 		view.Interval = &iv
 	}
+	if sched.Kind == schedule.Once {
+		at := sched.At.Format(time.RFC3339)
+		view.At = &at
+	}
 	var lastExit *int
 	if last != nil {
 		e := last.Exit
@@ -186,11 +190,15 @@ func (c *CLI) taskViewFrom(s *store.Store, name string, task *store.Task) (*Task
 
 // printWhenItRuns is the shared "next run" / "runs every" line.
 func (c *CLI) printWhenItRuns(sched *schedule.Schedule) {
-	if sched.Kind == schedule.Calendar {
+	switch sched.Kind {
+	case schedule.Calendar, schedule.Monthly:
 		if next := sched.NextRun(c.Now()); !next.IsZero() {
 			fmt.Fprintf(c.Stdout, "  next run: %s\n", next.Format("Mon 02 Jan 15:04"))
 		}
-		return
+	case schedule.Once:
+		fmt.Fprintf(c.Stdout, "  runs once at %s, then removes itself (logs kept)\n",
+			sched.At.Format("Mon 02 Jan 15:04"))
+	default:
+		fmt.Fprintf(c.Stdout, "  runs every %s while the machine is awake\n", sched.HumanInterval())
 	}
-	fmt.Fprintf(c.Stdout, "  runs every %s while the machine is awake\n", sched.HumanInterval())
 }

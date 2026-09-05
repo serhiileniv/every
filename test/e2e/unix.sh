@@ -100,12 +100,14 @@ mk() { # mk <name> <cmd> [timeout] -- store entry without touching the scheduler
 # ------------------------------------------------------------------- grammar
 sec "1. schedule grammar (documented forms)"
 for s in "90s" "15m" "2h" "hourly" "day 9am" "day 17:30" "day 9am,6pm" \
-         "weekdays 9:30" "weekends 11am" "monday 10:00" "monday,thursday 6pm"; do
+         "weekdays 9:30" "weekends 11am" "monday 10:00" "monday,thursday 6pm" \
+         "monthly 1st 9am" "monthly 1,15 18:00" "once tomorrow 9am" "once 45m"; do
   # shellcheck disable=SC2086
   if "$EVERY" __parse $s 2>/dev/null
   then ok "parses: $s"; else bad "parses: $s" "Schedule.parse rejected a documented form"; fi
 done
-for s in "banana" "0m" "25h99" "1d" "mon 8am" "day" "5s"; do
+for s in "banana" "0m" "25h99" "1d" "mon 8am" "day" "5s" \
+         "monthly 32nd 9am" "once" "once 5s" "once 2020-01-01 9am"; do
   # shellcheck disable=SC2086
   if "$EVERY" __parse $s 2>/dev/null
   then bad "rejects: $s" "accepted an invalid schedule"; else ok "rejects: $s"; fi

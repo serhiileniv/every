@@ -32,7 +32,9 @@ func TestDocumentedSchedulesAllParse(t *testing.T) {
 	// `every <schedule tokens> --` or `every <schedule tokens> -- <cmd>`: the
 	// tokens between the command name and the separator (or a flag) are what
 	// the parser has to accept.
-	re := regexp.MustCompile(`every ((?:[a-z0-9:,]+ ){1,2}?)(?:--|\z)`)
+	// Up to three tokens: `once tomorrow 9am` and `monthly 1st 9am`. A
+	// flag after the tokens still ends the match at its leading dashes.
+	re := regexp.MustCompile(`every ((?:[a-z0-9:,]+ ){1,3}?)(?:--|\z)`)
 
 	seen := map[string]bool{}
 	for _, f := range files {

@@ -47,7 +47,10 @@ func TestGrammarMatchesFrozenSurface(t *testing.T) {
 	accepted, rejected := 0, 0
 	for _, tc := range cases {
 		t.Run(name(tc.Tokens), func(t *testing.T) {
-			got, err := Parse(tc.Tokens)
+			// The pinned clock: once schedules resolve against it, and the
+			// frozen records carry the instants it produces. Every other
+			// form ignores it.
+			got, err := ParseAt(tc.Tokens, goldenClock(t))
 
 			if !tc.OK {
 				if err == nil {

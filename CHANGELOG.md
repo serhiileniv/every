@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+Two schedule forms the DSL could not say: a day of the month, and a single
+moment.
+
+### Added
+
+- **`monthly <days> <times>`** — `every monthly 1st 9am -- ./invoice.sh`,
+  `every monthly 1,15 18:00 -- …`. Days 29–31 skip months that lack them, on
+  all three schedulers alike. Stored under its own kind rather than as a
+  calendar entry with an extra field: an older `every` reading such a record
+  would drop the day and treat the task as daily, and its start-up repair
+  would then rewrite the unit that way. An unknown kind is refused instead.
+- **`once <when>`** — a task that fires once and then removes itself, with
+  the log and run history kept: `every once 15:30 -- …` (today, or tomorrow
+  if that has passed), `once tomorrow 9am`, `once friday 5pm`,
+  `once 2026-12-24 18:00`, `once 45m`. Delays are at least a minute and land
+  on a whole minute, because launchd calendar triggers have no seconds field.
+  The removal happens from inside the firing run, gated on the scheduled
+  moment having arrived, so `every run <name>` beforehand only checks the
+  command. It removes the task from the store first and unregisters last,
+  because launchd answers an unregister by terminating the job — which is the
+  process doing the unregistering. A one-shot the machine was off across
+  shows as `missed` in `list`; `resume` refuses it and start-up repair skips
+  it, since re-registering would arm launchd for the same date next year.
+- `every inspect --json` carries `at` for a once task; `every list` shows the
+  instant in NEXT.
+
 ## 0.5.1 — 2026-09-04
 
 Installer fixes, all Windows-only. Nothing in `every` itself changed.
