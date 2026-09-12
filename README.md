@@ -16,6 +16,10 @@
 </p>
 
 <p align="center">
+  <a href="https://trendshift.io/repositories/196320?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-196320" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/196320/daily?language=Ruby" alt="serhiileniv%2Fevery | Trendshift" width="250" height="55"/></a>
+</p>
+
+<p align="center">
   <img src="demo.gif" width="720" alt="every demo: schedule a task in one phrase, see ok/FAIL status, read run logs">
 </p>
 
