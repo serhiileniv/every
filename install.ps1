@@ -130,11 +130,32 @@ try {
   }
   else {
     if (-not $Version) {
+      # The API is rate limited per IP at 60/hour unauthenticated, so a shared
+      # address -- office NAT, CI -- can exhaust it and kill the one-liner
+      # before anything is downloaded. Use a token if the environment has one,
+      # and fall back to the /releases/latest redirect, which is not the API and
+      # is not rate limited. The token goes ONLY to api.github.com: the asset
+      # download below must never carry it, since it redirects to a CDN.
+      $headers = @{}
+      $token = if ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $env:GH_TOKEN }
+      if ($token) { $headers["Authorization"] = "Bearer $token" }
       try {
-        $latest = Invoke-RestMethod -UseBasicParsing `
+        $latest = Invoke-RestMethod -UseBasicParsing -Headers $headers `
           -Uri "https://api.github.com/repos/$repo/releases/latest"
         $Version = $latest.tag_name
       } catch {
+        try {
+          $r = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 `
+            -Uri "https://github.com/$repo/releases/latest" -ErrorAction Stop
+          $loc = $r.Headers["Location"] | Select-Object -First 1
+        } catch {
+          # PowerShell 5.1 throws on a 3xx with -MaximumRedirection 0; the
+          # response, and the Location header, are still on the exception.
+          $loc = $_.Exception.Response.Headers["Location"] | Select-Object -First 1
+        }
+        if ($loc -match '/tag/(?<tag>[^/\s]+)$') { $Version = $Matches.tag }
+      }
+      if (-not $Version) {
         Die "couldn't resolve the latest release (rate-limited or offline) -- retry with -Version X.Y.Z"
       }
     }
