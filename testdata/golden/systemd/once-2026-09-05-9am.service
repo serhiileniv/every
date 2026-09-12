@@ -1,0 +1,7 @@
+[Unit]
+Description=every task once-2026-09-05-9am
+
+[Service]
+Type=oneshot
+Environment=EVERY_HOME=/every-golden/home
+ExecStart="__LAUNCHER__" run "once-2026-09-05-9am"

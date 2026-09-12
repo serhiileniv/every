@@ -1,0 +1,32 @@
+{
+  "raw": "monthly 1,15 9am,6pm",
+  "kind": "monthly",
+  "to_h": {
+    "raw": "monthly 1,15 9am,6pm",
+    "kind": "monthly",
+    "entries": [
+      {
+        "hour": 9,
+        "minute": 0,
+        "day": 1
+      },
+      {
+        "hour": 18,
+        "minute": 0,
+        "day": 1
+      },
+      {
+        "hour": 9,
+        "minute": 0,
+        "day": 15
+      },
+      {
+        "hour": 18,
+        "minute": 0,
+        "day": 15
+      }
+    ]
+  },
+  "next_run": "2026-09-15T09:00:00-04:00",
+  "human": null
+}

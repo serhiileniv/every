@@ -642,5 +642,487 @@
     ],
     "ok": false,
     "error": "cannot parse schedule \"day 9am 6pm\" (examples: 15m | hourly | day 9am,6pm | weekdays 9:30 | monday,thursday 10:00)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monthly 1st 9am",
+      "kind": "monthly",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0,
+          "day": 1
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1,15",
+      "9am,6pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monthly 1,15 9am,6pm",
+      "kind": "monthly",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0,
+          "day": 1
+        },
+        {
+          "hour": 18,
+          "minute": 0,
+          "day": 1
+        },
+        {
+          "hour": 9,
+          "minute": 0,
+          "day": 15
+        },
+        {
+          "hour": 18,
+          "minute": 0,
+          "day": 15
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monthly",
+      "31st",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monthly 31st 9am",
+      "kind": "monthly",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0,
+          "day": 31
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "monthly",
+      "15th,15",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "monthly 15th,15 9am",
+      "kind": "monthly",
+      "entries": [
+        {
+          "hour": 9,
+          "minute": 0,
+          "day": 15
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "Monthly",
+      "2nd",
+      "17:30"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "Monthly 2nd 17:30",
+      "kind": "monthly",
+      "entries": [
+        {
+          "hour": 17,
+          "minute": 30,
+          "day": 2
+        }
+      ]
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 9am",
+      "kind": "once",
+      "at": "2026-09-03T09:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "11am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 11am",
+      "kind": "once",
+      "at": "2026-09-02T11:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "10:30"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 10:30",
+      "kind": "once",
+      "at": "2026-09-03T10:30:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "today",
+      "11am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once today 11am",
+      "kind": "once",
+      "at": "2026-09-02T11:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "tomorrow",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once tomorrow 9am",
+      "kind": "once",
+      "at": "2026-09-03T09:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "wednesday",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once wednesday 9am",
+      "kind": "once",
+      "at": "2026-09-09T09:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "wednesday",
+      "11am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once wednesday 11am",
+      "kind": "once",
+      "at": "2026-09-02T11:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "Friday",
+      "5pm"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once Friday 5pm",
+      "kind": "once",
+      "at": "2026-09-04T17:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "2026-09-05",
+      "9am"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 2026-09-05 9am",
+      "kind": "once",
+      "at": "2026-09-05T09:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "30m"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 30m",
+      "kind": "once",
+      "at": "2026-09-02T11:00:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "90s"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 90s",
+      "kind": "once",
+      "at": "2026-09-02T10:32:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "60s"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 60s",
+      "kind": "once",
+      "at": "2026-09-02T10:31:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "once",
+      "2h"
+    ],
+    "ok": true,
+    "to_h": {
+      "raw": "once 2h",
+      "kind": "once",
+      "at": "2026-09-02T12:30:00-04:00"
+    }
+  },
+  {
+    "tokens": [
+      "monthly"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"monthly\" (monthly <day[,day]> <time[,time]>, e.g. monthly 1st 9am | monthly 1,15 18:00)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"monthly 1st\" (monthly <day[,day]> <time[,time]>, e.g. monthly 1st 9am | monthly 1,15 18:00)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st",
+      "9am",
+      "6pm"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"monthly 1st 9am 6pm\" (monthly <day[,day]> <time[,time]>, e.g. monthly 1st 9am | monthly 1,15 18:00)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "0th",
+      "9am"
+    ],
+    "ok": false,
+    "error": "day of month out of range: \"0th\" (1-31)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "32nd",
+      "9am"
+    ],
+    "ok": false,
+    "error": "day of month out of range: \"32nd\" (1-31)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1,,15",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse day of month \"1,,15\" (1-31, e.g. 1st or 1,15)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st,",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse day of month \"1st,\" (1-31, e.g. 1st or 1,15)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "first",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse day of month \"first\" (1-31, e.g. 1st or 1,15)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st",
+      "9am,"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"9am,\" (e.g. 9am or 9am,6pm)"
+  },
+  {
+    "tokens": [
+      "monthly",
+      "1st",
+      "25:00"
+    ],
+    "ok": false,
+    "error": "time out of range: \"25:00\""
+  },
+  {
+    "tokens": [
+      "once"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"once\" (once <time> | once today|tomorrow|<weekday>|YYYY-MM-DD <time> | once 45m)"
+  },
+  {
+    "tokens": [
+      "once",
+      "today",
+      "9am"
+    ],
+    "ok": false,
+    "error": "one-shot time has already passed: \"today 9am\""
+  },
+  {
+    "tokens": [
+      "once",
+      "today",
+      "10:30"
+    ],
+    "ok": false,
+    "error": "one-shot time has already passed: \"today 10:30\""
+  },
+  {
+    "tokens": [
+      "once",
+      "2026-09-02",
+      "9am"
+    ],
+    "ok": false,
+    "error": "one-shot time has already passed: \"2026-09-02 9am\""
+  },
+  {
+    "tokens": [
+      "once",
+      "2020-01-01",
+      "9am"
+    ],
+    "ok": false,
+    "error": "one-shot time has already passed: \"2020-01-01 9am\""
+  },
+  {
+    "tokens": [
+      "once",
+      "2026-02-30",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse date \"2026-02-30\" (YYYY-MM-DD)"
+  },
+  {
+    "tokens": [
+      "once",
+      "yesterday",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse day \"yesterday\" (today | tomorrow | monday | 2026-09-10)"
+  },
+  {
+    "tokens": [
+      "once",
+      "banana",
+      "9am"
+    ],
+    "ok": false,
+    "error": "cannot parse day \"banana\" (today | tomorrow | monday | 2026-09-10)"
+  },
+  {
+    "tokens": [
+      "once",
+      "5s"
+    ],
+    "ok": false,
+    "error": "once delay too small (min 60s)"
+  },
+  {
+    "tokens": [
+      "once",
+      "59s"
+    ],
+    "ok": false,
+    "error": "once delay too small (min 60s)"
+  },
+  {
+    "tokens": [
+      "once",
+      "1d"
+    ],
+    "ok": false,
+    "error": "cannot parse time \"1d\""
+  },
+  {
+    "tokens": [
+      "once",
+      "9am",
+      "6pm"
+    ],
+    "ok": false,
+    "error": "cannot parse day \"9am\" (today | tomorrow | monday | 2026-09-10)"
+  },
+  {
+    "tokens": [
+      "once",
+      "tomorrow",
+      "9am",
+      "6pm"
+    ],
+    "ok": false,
+    "error": "cannot parse schedule \"once tomorrow 9am 6pm\" (once <time> | once today|tomorrow|<weekday>|YYYY-MM-DD <time> | once 45m)"
+  },
+  {
+    "tokens": [
+      "once",
+      "tomorrow",
+      "13pm"
+    ],
+    "ok": false,
+    "error": "hour out of range for am/pm: \"13pm\""
   }
 ]

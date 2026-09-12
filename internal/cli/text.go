@@ -41,6 +41,8 @@ add a task:
   every day 9am,6pm -- ruby ~/bin/report.rb
   every weekdays 9:30 -- ~/bin/standup-prep.sh
   every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh
+  every monthly 1st 9am -- ~/bin/invoice.sh
+  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)
 
   Flags: --name NAME, --quiet (no failure notification),
          --timeout 30m (kill a run that overruns, so it can't block

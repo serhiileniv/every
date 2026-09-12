@@ -65,16 +65,32 @@ func (l *Launchd) PlistXML(name string, s *schedule.Schedule) string {
 	agentLog := path.Join(l.cfg.Dirs.Logs, "_agent.log")
 
 	var trigger string
-	if s.Kind == schedule.Interval {
+	switch s.Kind {
+	case schedule.Interval:
 		trigger = "  <key>StartInterval</key>\n  <integer>" + s.Interval.String() + "</integer>"
-	} else {
+	case schedule.Once:
+		// launchd has Month and Day but no Year, so this dict would match
+		// again twelve months on. It never gets the chance: the task retires
+		// itself after the run, and the plist goes with it.
+		at := s.At
+		trigger = "  <key>StartCalendarInterval</key>\n  <array>\n    <dict>\n" +
+			fmt.Sprintf("      <key>Month</key><integer>%d</integer>\n", int(at.Month())) +
+			fmt.Sprintf("      <key>Day</key><integer>%d</integer>\n", at.Day()) +
+			fmt.Sprintf("      <key>Hour</key><integer>%d</integer>\n", at.Hour()) +
+			fmt.Sprintf("      <key>Minute</key><integer>%d</integer>\n", at.Minute()) +
+			"    </dict>\n  </array>"
+	default:
 		dicts := make([]string, 0, len(s.Entries))
 		for _, e := range s.Entries {
 			var lines []string
 			// Weekday only when the entry has one: its absence is what makes
-			// `day 9am` fire daily rather than on Sunday.
+			// `day 9am` fire daily rather than on Sunday. Day likewise, for
+			// monthly entries; the two never appear together.
 			if e.Weekday != nil {
 				lines = append(lines, fmt.Sprintf("      <key>Weekday</key><integer>%d</integer>", *e.Weekday))
+			}
+			if e.Day != nil {
+				lines = append(lines, fmt.Sprintf("      <key>Day</key><integer>%d</integer>", *e.Day))
 			}
 			lines = append(lines,
 				fmt.Sprintf("      <key>Hour</key><integer>%d</integer>", e.Hour),
@@ -184,6 +200,17 @@ func (l *Launchd) DeleteUnits(name string) error {
 		return err
 	}
 	return nil
+}
+
+// Retire removes a once task from inside its own run. The plist goes first;
+// bootout goes last and its result is not read, because launchd answers a
+// bootout by terminating the job -- and the job is this process. Anything
+// that has to happen after this call would not.
+func (l *Launchd) Retire(name string) error {
+	if err := l.DeleteUnits(name); err != nil {
+		return err
+	}
+	return l.Disable(name)
 }
 
 func (l *Launchd) Loaded(name string) bool {

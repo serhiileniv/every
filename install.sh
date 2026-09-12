@@ -205,6 +205,45 @@ fetch() {
   fi
 }
 
+# The version query is the one request that goes to the GitHub API, which is
+# rate limited per IP at 60/hour unauthenticated. Shared addresses run out --
+# office NAT, CI -- and `curl | sh` then dies before downloading anything, which
+# is what it did on a GitHub-hosted macOS runner. A token is used when the
+# environment already has one.
+#
+# Deliberately NOT routed through fetch(): that follows redirects and also
+# fetches the release asset, and curl forwards an -H header across a cross-host
+# redirect, which would hand the token to the asset CDN. No -L here either, for
+# the same reason; the API does not redirect this endpoint.
+fetch_api() {
+  token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+  if have curl; then
+    if [ -n "$token" ]; then curl -fsS -H "Authorization: Bearer $token" "$1"
+    else                     curl -fsS "$1"
+    fi
+  elif have wget; then
+    if [ -n "$token" ]; then wget -qO- --header="Authorization: Bearer $token" "$1"
+    else                     wget -qO- "$1"
+    fi
+  else die "need curl or wget to download every"
+  fi
+}
+
+# The tag that /releases/latest redirects to. Not the API, so no rate limit and
+# no token needed -- the fallback that keeps the one-liner working on an address
+# whose API budget is already spent.
+latest_tag_via_redirect() {
+  if have curl; then
+    curl -fsSLI -o /dev/null -w '%{url_effective}\n' \
+      "https://github.com/$REPO/releases/latest" 2>/dev/null |
+      sed -n 's|.*/tag/||p' | head -1
+  elif have wget; then
+    wget -qS --max-redirect=0 -O /dev/null \
+      "https://github.com/$REPO/releases/latest" 2>&1 |
+      sed -n 's|.*Location:.*/tag/\([^[:space:]]*\).*|\1|p' | head -1
+  fi
+}
+
 script_dir() {
   case "$0" in
     */*) (cd "$(dirname "$0")" && pwd) ;;
@@ -234,9 +273,10 @@ try_local_build() {
 
 resolve_version() {
   [ -n "$VERSION" ] && { VERSION="${VERSION#v}"; return 0; }
-  VERSION=$(fetch "https://api.github.com/repos/$REPO/releases/latest" |
+  VERSION=$(fetch_api "https://api.github.com/repos/$REPO/releases/latest" |
               sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
               head -1) || true
+  [ -n "$VERSION" ] || VERSION=$(latest_tag_via_redirect)
   [ -n "$VERSION" ] ||
     die "couldn't resolve the latest release (rate-limited or offline) — retry with --version X.Y.Z"
   VERSION="${VERSION#v}"

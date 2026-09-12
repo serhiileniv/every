@@ -235,6 +235,19 @@ func (w *TaskScheduler) triggerXML(s *schedule.Schedule) string {
 `, xmlTime(now.Add(time.Duration(s.Interval.Int64())*time.Second)), s.Interval.String())
 	}
 
+	if s.Kind == schedule.Once {
+		// No Repetition and no EndBoundary: the task fires once at the
+		// boundary (or on the next wake, via StartWhenAvailable) and then
+		// retires itself. DeleteExpiredTaskAfter would need an EndBoundary,
+		// past which StartWhenAvailable stops catching up -- a missed
+		// one-shot would then be lost rather than run late.
+		return fmt.Sprintf(`<TimeTrigger>
+  <StartBoundary>%s</StartBoundary>
+  <Enabled>true</Enabled>
+</TimeTrigger>
+`, xmlTime(s.At))
+	}
+
 	var b strings.Builder
 	for _, e := range s.Entries {
 		b.WriteString(w.calendarTriggerXML(s, e, now))
@@ -244,7 +257,15 @@ func (w *TaskScheduler) triggerXML(s *schedule.Schedule) string {
 
 func (w *TaskScheduler) calendarTriggerXML(s *schedule.Schedule, e schedule.Entry, now time.Time) string {
 	var recurrence string
-	if e.Weekday != nil {
+	if e.Day != nil {
+		// Months is optional in the schema, but the service treats an absent
+		// element as no months at all; the UI always writes all twelve.
+		recurrence = fmt.Sprintf(`<ScheduleByMonth>
+  <DaysOfMonth><Day>%d</Day></DaysOfMonth>
+  <Months>%s</Months>
+</ScheduleByMonth>
+`, *e.Day, allMonthTags)
+	} else if e.Weekday != nil {
 		tag := weekdayTags[((*e.Weekday%7)+7)%7]
 		recurrence = fmt.Sprintf(`<ScheduleByWeek>
   <DaysOfWeek><%s/></DaysOfWeek>
@@ -261,6 +282,17 @@ func (w *TaskScheduler) calendarTriggerXML(s *schedule.Schedule, e schedule.Entr
 %s
 </CalendarTrigger>
 `, xmlTime(s.NextForEntry(e, now)), recurrence)
+}
+
+// allMonthTags is the ScheduleByMonth month list, every month.
+const allMonthTags = "<January/><February/><March/><April/><May/><June/>" +
+	"<July/><August/><September/><October/><November/><December/>"
+
+// Retire removes a once task from inside its own run. Deleting a task does
+// not end a running instance (that is a separate /End), and there is nothing
+// left to disable afterwards.
+func (w *TaskScheduler) Retire(name string) error {
+	return w.DeleteUnits(name)
 }
 
 func (w *TaskScheduler) Enable(name string) error {

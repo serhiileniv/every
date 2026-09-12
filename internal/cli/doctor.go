@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/serhiileniv/every/internal/runner"
 	"github.com/serhiileniv/every/internal/schedule"
 	"github.com/serhiileniv/every/internal/store"
 )
@@ -124,14 +125,21 @@ func (c *CLI) doctorCommand(cmd string, check func(string, bool, string), note f
 
 	switch {
 	case bareWordRe.MatchString(word):
-		ok := commandResolves(word)
+		res := resolveCommand(word)
 		fix := "not on the login shell's PATH. A login shell reads ~/.zprofile " +
 			"(not ~/.zshrc), so a PATH set only for interactive shells won't be " +
 			"there — use an absolute path, or set PATH in ~/.zprofile."
-		if runtime.GOOS == "windows" {
+		switch {
+		case runtime.GOOS == "windows":
 			fix = "tasks use the Windows shell; check the user/system PATH, or use an absolute path"
+		case res.terminal != "" && !res.login:
+			// The exact trap, caught: it works where the user is typing and
+			// nowhere the scheduler runs. Name the file to move the line to.
+			fix = fmt.Sprintf("found in your terminal (%s) but not in a clean login shell, "+
+				"which is what the scheduler runs. Your PATH line is probably in ~/.zshrc "+
+				"(interactive only) — move it to ~/.zprofile, or use the absolute path.", res.terminal)
 		}
-		check(fmt.Sprintf("command resolvable in login shell (%s)", word), ok, fix)
+		check(fmt.Sprintf("command resolvable in login shell (%s)", word), res.login, fix)
 
 	case looksLikePath(word):
 		expanded := expandUser(word)
@@ -170,13 +178,59 @@ func expandUser(p string) string {
 	return p
 }
 
-func commandResolves(word string) bool {
-	if runtime.GOOS == "windows" {
-		return windowsCommandResolves(word)
-	}
-	_, err := exec.LookPath(word)
-	return err == nil
+// resolution is where a bare command word was found: in a clean login shell
+// (the scheduler's view) and, separately, on the PATH of the terminal running
+// doctor.
+type resolution struct {
+	login    bool
+	terminal string // path from the terminal's PATH, or "" if absent there too
 }
+
+// resolveCommand probes the command the way the scheduler will run it, not the
+// way the terminal sees it. exec.LookPath alone inherits the PATH of the shell
+// doctor was typed into -- exactly the PATH the task will NOT have -- and so
+// reported "resolvable" for a command every scheduled run then failed to find.
+//
+// On Unix the probe is the runner's login shell with an environment reduced
+// to what launchd or systemd would hand it, so ~/.zshrc-only PATH additions
+// are absent, as they are at fire time. Windows has no login-shell split; the
+// probe asks whichever shell the task will run in, since a cmd.exe builtin is
+// not a file on disk.
+func resolveCommand(word string) resolution {
+	var res resolution
+	if runtime.GOOS == "windows" {
+		res.login = windowsCommandResolves(word)
+		return res
+	}
+	if p, err := exec.LookPath(word); err == nil {
+		res.terminal = p
+	}
+	res.login = resolvesInCleanLoginShell(word)
+	return res
+}
+
+// cleanLoginEnv is the environment a scheduler-spawned job starts with on
+// Unix: identity and home, nothing inherited from the terminal. PATH is left
+// to the shell's own startup files, which is the point of the probe.
+var cleanLoginEnv = []string{"HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG"}
+
+func resolvesInCleanLoginShell(word string) bool {
+	shell := (&runner.Runner{}).LoginShellFor(runtime.GOOS, os.Getenv("SHELL"))
+	// `command -v` rather than which: a builtin, so it is POSIX and adds no
+	// PATH dependency of its own to a probe that is about PATH.
+	argv := append(shell, "command -v "+shellQuote(word)+" >/dev/null 2>&1")
+	cmd := exec.Command(argv[0], argv[1:]...)
+	for _, k := range cleanLoginEnv {
+		if v, ok := os.LookupEnv(k); ok {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+	return cmd.Run() == nil
+}
+
+// shellQuote single-quotes a word for the probe. bareWordRe already excludes
+// anything that would need escaping; this is belt and braces.
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 // cmdBuiltins are cmd.exe's internal commands.
 //

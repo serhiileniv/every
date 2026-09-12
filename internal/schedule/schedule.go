@@ -8,9 +8,17 @@
 //	weekends 11am             -> Sat+Sun at 11:00
 //	monday 10:00              -> weekly
 //	monday,thursday 10:00     -> twice a week
+//	monthly 1st 9am           -> day of month
+//	monthly 1,15 9am,6pm      -> several days, several times
+//	once 15:30                -> today (or tomorrow, if 15:30 has passed), then gone
+//	once tomorrow 9am         -> a moment; also today/<weekday>/YYYY-MM-DD
+//	once 45m                  -> now + 45m, on a whole minute
 //
 // Calendar schedules normalize to a list of {weekday?, hour, minute} entries --
-// one launchd StartCalendarInterval dict each.
+// one launchd StartCalendarInterval dict each. Monthly schedules are the same
+// list with a day-of-month per entry instead of a weekday, under their own
+// kind so that a binary which predates them refuses the record rather than
+// silently reading it as daily. A once schedule is a single instant.
 //
 // Ported from lib/every/schedule.rb. This is the file the syntax freeze rests
 // on: every form accepted here and every message rejected here is pinned by
@@ -33,12 +41,28 @@ type Kind string
 const (
 	Interval Kind = "interval"
 	Calendar Kind = "calendar"
+	// Monthly is a calendar schedule keyed by day of month. Its own kind, not
+	// Calendar with an extra field: an older binary decoding Calendar entries
+	// would drop the unknown day key, read the task as daily, and its migration
+	// would then rewrite the unit that way. An unknown kind fails loudly.
+	Monthly Kind = "monthly"
+	// Once is a single instant. The task removes itself after that run.
+	Once Kind = "once"
 )
 
 // MinInterval is the floor for interval schedules on Unix. Windows floors at
 // one minute instead; that check lives in the Task Scheduler backend, since it
 // is a property of that scheduler rather than of the grammar.
 const MinInterval = 10
+
+// MinOnceDelay is the floor for `once <interval>`. launchd calendar triggers
+// are minute-resolution, so a delay under a minute would have to round to an
+// instant that has either passed or is further away than asked.
+const MinOnceDelay = 60
+
+// maxMonthWalk bounds the search for the next day-of-month occurrence. The
+// 29th recurs at least every fourth year; 96 months covers a century skip.
+const maxMonthWalk = 96
 
 var weekdays = map[string]int{
 	"sunday": 0, "monday": 1, "tuesday": 2, "wednesday": 3,
@@ -66,24 +90,39 @@ type Entry struct {
 	Hour    int  `json:"hour"`
 	Minute  int  `json:"minute"`
 	Weekday *int `json:"weekday,omitempty"`
+	// Day is a day of month, 1-31, set only on Monthly entries. Appended after
+	// Weekday because field order is key order and existing records must
+	// round-trip unchanged; omitempty keeps it out of every other kind.
+	Day *int `json:"day,omitempty"`
 }
 
-// Schedule is a parsed schedule. Exactly one of Interval / Entries is
+// Schedule is a parsed schedule. Exactly one of Interval / Entries / At is
 // meaningful, per Kind.
 type Schedule struct {
 	Raw      string
 	Kind     Kind
-	Interval Seconds // interval schedules only
-	Entries  []Entry
+	Interval Seconds   // interval schedules only
+	Entries  []Entry   // calendar and monthly
+	At       time.Time // once only; seconds are always zero
 }
 
 var (
 	intervalRe = regexp.MustCompile(`^(\d+)(s|m|h)$`)
 	timeRe     = regexp.MustCompile(`^(\d{1,2})(?::(\d{2}))?(am|pm)?$`)
+	monthDayRe = regexp.MustCompile(`^(\d{1,2})(st|nd|rd|th)?$`)
+	isoDateRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 )
 
-// Parse turns command-line tokens into a Schedule.
+// Parse turns command-line tokens into a Schedule, resolving a once schedule
+// against the wall clock.
 func Parse(tokens []string) (*Schedule, error) {
+	return ParseAt(tokens, time.Now())
+}
+
+// ParseAt is Parse with an explicit clock. Only once schedules consult it:
+// "once 9am" means today or tomorrow depending on what time it is, and the
+// instant is what gets stored, not the phrase.
+func ParseAt(tokens []string, now time.Time) (*Schedule, error) {
 	raw := strings.Join(tokens, " ")
 	if len(tokens) == 0 {
 		return nil, errors.New("empty schedule")
@@ -92,6 +131,16 @@ func Parse(tokens []string) (*Schedule, error) {
 	// Only the first token is lowercased here, which is why "5M" is accepted
 	// as five minutes. The second token is lowercased inside parseTime.
 	first := strings.ToLower(tokens[0])
+
+	// The keyword forms dispatch before the length checks below, so that every
+	// other token sequence keeps the exact acceptance and message it has
+	// always had -- those are frozen by the grammar table.
+	switch first {
+	case "monthly":
+		return parseMonthly(raw, tokens[1:])
+	case "once":
+		return parseOnce(raw, tokens[1:], now)
+	}
 
 	if len(tokens) == 1 {
 		if m := intervalRe.FindStringSubmatch(first); m != nil {
@@ -143,18 +192,176 @@ func Parse(tokens []string) (*Schedule, error) {
 // and parseTimes already did.
 func appendUnique(entries []Entry, e Entry) []Entry {
 	for _, existing := range entries {
-		if existing.Hour == e.Hour && existing.Minute == e.Minute && sameWeekday(existing.Weekday, e.Weekday) {
+		if existing.Hour == e.Hour && existing.Minute == e.Minute &&
+			sameIntp(existing.Weekday, e.Weekday) && sameIntp(existing.Day, e.Day) {
 			return entries
 		}
 	}
 	return append(entries, e)
 }
 
-func sameWeekday(a, b *int) bool {
+func sameIntp(a, b *int) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+// parseMonthly handles `monthly <days> <times>`: a days-major product, like
+// the weekday forms, with a day of month in place of the weekday.
+func parseMonthly(raw string, rest []string) (*Schedule, error) {
+	if len(rest) != 2 {
+		return nil, fmt.Errorf(
+			"cannot parse schedule %s (monthly <day[,day]> <time[,time]>, e.g. monthly 1st 9am | monthly 1,15 18:00)",
+			inspect(raw))
+	}
+	days, err := parseMonthDays(rest[0])
+	if err != nil {
+		return nil, err
+	}
+	times, err := parseTimes(rest[1])
+	if err != nil {
+		return nil, err
+	}
+	var entries []Entry
+	for _, d := range days {
+		for _, hm := range times {
+			entries = appendUnique(entries, Entry{Hour: hm[0], Minute: hm[1], Day: intp(d)})
+		}
+	}
+	return &Schedule{Raw: raw, Kind: Monthly, Entries: entries}, nil
+}
+
+// parseMonthDays accepts "1", "1st", "1,15", "1st,15th". Empty segments are
+// rejected as in parseTimes: this grammar is new, so it gets the strict rule
+// on both sides. Days 29-31 are allowed and simply skip shorter months, which
+// is what all three schedulers do with them.
+func parseMonthDays(spec string) ([]int, error) {
+	bad := fmt.Errorf("cannot parse day of month %s (1-31, e.g. 1st or 1,15)", inspect(spec))
+	if spec == "" {
+		return nil, bad
+	}
+	var out []int
+	seen := map[int]bool{}
+	for _, p := range strings.Split(spec, ",") {
+		m := monthDayRe.FindStringSubmatch(strings.ToLower(p))
+		if m == nil {
+			return nil, bad
+		}
+		n, _ := strconv.Atoi(m[1])
+		if n < 1 || n > 31 {
+			return nil, fmt.Errorf("day of month out of range: %s (1-31)", inspect(p))
+		}
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out, nil
+}
+
+// parseOnce resolves `once <when>` to an instant strictly after now:
+//
+//	once 15:30              today, or tomorrow if 15:30 has passed
+//	once today 6pm          today only; an error if 6pm has passed
+//	once tomorrow 9am
+//	once friday 10:00       the next Friday; today's if 10:00 is still ahead
+//	once 2026-09-10 15:30
+//	once 45m                now + 45m, rounded up to a whole minute
+//
+// Seconds are always zero because launchd calendar triggers have no seconds
+// field; an instant with 45 seconds on it would be written as :00 and already
+// be in the past when it fired.
+func parseOnce(raw string, rest []string, now time.Time) (*Schedule, error) {
+	usage := fmt.Errorf(
+		"cannot parse schedule %s (once <time> | once today|tomorrow|<weekday>|YYYY-MM-DD <time> | once 45m)",
+		inspect(raw))
+	loc := now.Location()
+	var at time.Time
+
+	switch len(rest) {
+	case 1:
+		tok := strings.ToLower(rest[0])
+		if m := intervalRe.FindStringSubmatch(tok); m != nil {
+			n, err := parseSeconds(m[1])
+			if err != nil {
+				return nil, usage
+			}
+			secs := n.Mul(unitSeconds[m[2]])
+			if secs.Cmp(MinOnceDelay) < 0 {
+				return nil, fmt.Errorf("once delay too small (min %ds)", MinOnceDelay)
+			}
+			// A delay far enough out to overflow a Duration is not a real
+			// request; the interval grammar accepts arbitrary digits, this
+			// form does not need to.
+			if secs.Cmp(1<<31) > 0 {
+				return nil, fmt.Errorf("once delay too large: %s", inspect(rest[0]))
+			}
+			at = now.Add(time.Duration(secs.Int64()) * time.Second)
+			at = ceilMinute(at)
+			return &Schedule{Raw: raw, Kind: Once, At: at}, nil
+		}
+		hm, err := parseTime(rest[0])
+		if err != nil {
+			return nil, err
+		}
+		at = time.Date(now.Year(), now.Month(), now.Day(), hm[0], hm[1], 0, 0, loc)
+		if !at.After(now) {
+			at = shiftDays(at, 1)
+		}
+
+	case 2:
+		day := strings.ToLower(rest[0])
+		hm, err := parseTime(rest[1])
+		if err != nil {
+			return nil, err
+		}
+		today := time.Date(now.Year(), now.Month(), now.Day(), hm[0], hm[1], 0, 0, loc)
+		switch {
+		case day == "today":
+			at = today
+		case day == "tomorrow":
+			at = shiftDays(today, 1)
+		case isoDateRe.MatchString(day):
+			d, err := time.ParseInLocation("2006-01-02", day, loc)
+			// ParseInLocation normalizes nothing: 2026-02-30 is an error, not
+			// March 2, which is what a one-shot wants.
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse date %s (YYYY-MM-DD)", inspect(rest[0]))
+			}
+			at = time.Date(d.Year(), d.Month(), d.Day(), hm[0], hm[1], 0, 0, loc)
+		default:
+			wd, ok := weekdays[day]
+			if !ok {
+				return nil, fmt.Errorf(
+					"cannot parse day %s (today | tomorrow | monday | 2026-09-10)", inspect(rest[0]))
+			}
+			delta := ((wd-int(now.Weekday()))%7 + 7) % 7
+			at = shiftDays(today, delta)
+			if !at.After(now) {
+				at = shiftDays(at, 7)
+			}
+		}
+
+	default:
+		return nil, usage
+	}
+
+	if !at.After(now) {
+		return nil, fmt.Errorf("one-shot time has already passed: %s", inspect(strings.Join(rest, " ")))
+	}
+	return &Schedule{Raw: raw, Kind: Once, At: at}, nil
+}
+
+// ceilMinute rounds up to the next whole minute, leaving a time already on
+// the minute alone.
+func ceilMinute(t time.Time) time.Time {
+	t = t.Truncate(0) // drop the monotonic reading, so Equal below is by wall clock
+	floor := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location())
+	if floor.Equal(t) {
+		return floor
+	}
+	return floor.Add(time.Minute)
 }
 
 func parseDays(spec string) ([]*int, error) {
@@ -287,7 +494,15 @@ func (s *Schedule) HumanInterval() string {
 // interval schedule (which has no calendar answer) and for a calendar schedule
 // with no entries (which a legacy record can produce).
 func (s *Schedule) NextRun(from time.Time) time.Time {
-	if s.Kind == Interval {
+	switch s.Kind {
+	case Interval:
+		return time.Time{}
+	case Once:
+		// Once the instant has passed there is no next run: either it fired
+		// and the task is about to remove itself, or it was missed.
+		if s.At.After(from) {
+			return s.At
+		}
 		return time.Time{}
 	}
 	var best time.Time
@@ -302,6 +517,10 @@ func (s *Schedule) NextRun(from time.Time) time.Time {
 
 // NextForEntry is the next occurrence of one entry at or after `from`.
 func (s *Schedule) NextForEntry(e Entry, from time.Time) time.Time {
+	if e.Day != nil {
+		return nextMonthDay(*e.Day, e.Hour, e.Minute, from)
+	}
+
 	t := time.Date(from.Year(), from.Month(), from.Day(), e.Hour, e.Minute, 0, 0, from.Location())
 
 	if e.Weekday != nil {
@@ -322,6 +541,31 @@ func (s *Schedule) NextForEntry(e Entry, from time.Time) time.Time {
 		t = shiftDays(t, 1)
 	}
 	return t
+}
+
+// nextMonthDay is the next occurrence of day-of-month `day` at hour:minute
+// strictly after `from`. Months that lack the day (the 31st of September, the
+// 29th of most Februaries) are skipped rather than normalized: time.Date would
+// quietly turn February 31 into March 3, so the day count is checked first.
+func nextMonthDay(day, hour, minute int, from time.Time) time.Time {
+	loc := from.Location()
+	year, month := from.Year(), from.Month()
+	for i := 0; i < maxMonthWalk; i++ {
+		// Day zero of the following month is the last day of this one.
+		last := time.Date(year, month+1, 0, 0, 0, 0, 0, loc).Day()
+		if day <= last {
+			t := time.Date(year, month, day, hour, minute, 0, 0, loc)
+			if t.After(from) {
+				return t
+			}
+		}
+		month++
+		if month > time.December {
+			month = time.January
+			year++
+		}
+	}
+	return time.Time{}
 }
 
 // shiftDays adds whole calendar days keeping wall-clock hour:minute -- DST-safe,

@@ -25,8 +25,9 @@ These are real limitations, not hidden ones:
 - **Log rotation is crude** — a single 5 MB cutoff to `.log.old`. No
   compression, no retention policy. (The run *ledger* is bounded to the last
   500 runs; the detailed `.log` is what's still coarse.)
-- **Schedule DSL is small.** No "last day of month", no "every other week", no
-  cron expressions (by design — but some of these are worth adding).
+- **Schedule DSL is small.** `monthly` and `once` landed, but there is still
+  no "last day of month", no "every other week", no cron expressions (by
+  design — but some of these are worth adding).
 - **Long-term durability is unproven.** The tool is new; behavior across macOS
   upgrades and months of uptime hasn't been observed yet.
 
@@ -49,8 +50,8 @@ These are real limitations, not hidden ones:
   source-only: `install.sh`, one `curl | sh`. Distro packages — deb/rpm/AUR —
   only if there's demand; see [DECISIONS.md](DECISIONS.md) for why the script
   came first.)
-- **More schedule forms** — `monthly`, `last day`, `every 2 weeks`,
-  `weekdays 9-18/1h` (bounded intervals).
+- **More schedule forms** — `last day`, `every 2 weeks`,
+  `weekdays 9-18/1h` (bounded intervals). (`monthly` and `once` shipped.)
 - **`every export` / `import`** — dump tasks to a portable file, re-create them
   on another machine (dotfiles-friendly).
 - **Config file** — declare tasks in a checked-in file, `every sync` to apply

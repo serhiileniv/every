@@ -2,6 +2,7 @@ package schedule
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/serhiileniv/every/internal/jsonx"
 )
@@ -29,7 +30,16 @@ type Record struct {
 	Hour    *int `json:"hour,omitempty"`
 	Minute  *int `json:"minute,omitempty"`
 	Weekday *int `json:"weekday,omitempty"`
+
+	// At is the instant of a once schedule, RFC 3339 with the offset that was
+	// in effect where the task was added. Appended last: key order is the
+	// compatibility surface described above.
+	At *string `json:"at,omitempty"`
 }
+
+// atLayout is RFC 3339 without fractional seconds. At always has zero
+// seconds, so this is also what the backends read back.
+const atLayout = time.RFC3339
 
 // ToRecord is Ruby's Schedule#to_h.
 func (s *Schedule) ToRecord() Record {
@@ -37,6 +47,11 @@ func (s *Schedule) ToRecord() Record {
 	if s.Kind == Interval {
 		v := s.Interval
 		r.Interval = &v
+		return r
+	}
+	if s.Kind == Once {
+		at := s.At.Format(atLayout)
+		r.At = &at
 		return r
 	}
 	// An empty entries list still serializes as [], matching Ruby, where the
@@ -63,6 +78,27 @@ func FromRecord(r Record) (*Schedule, error) {
 
 	case "calendar":
 		return &Schedule{Raw: r.Raw, Kind: Calendar, Entries: normalizeEntries(r.Entries)}, nil
+
+	case "monthly":
+		for _, e := range r.Entries {
+			if e.Day == nil || *e.Day < 1 || *e.Day > 31 {
+				return nil, fmt.Errorf("monthly schedule entry without a day of month: %s", inspect(r.Raw))
+			}
+		}
+		return &Schedule{Raw: r.Raw, Kind: Monthly, Entries: normalizeEntries(r.Entries)}, nil
+
+	case "once":
+		// A binary that predates this kind drops the field on save, because
+		// its Record has no such key. That must surface as an invalid task,
+		// not a panic in the backends.
+		if r.At == nil || *r.At == "" {
+			return nil, fmt.Errorf("once schedule without an instant: %s", inspect(r.Raw))
+		}
+		at, err := time.Parse(atLayout, *r.At)
+		if err != nil {
+			return nil, fmt.Errorf("once schedule with an unreadable instant %s", inspect(*r.At))
+		}
+		return &Schedule{Raw: r.Raw, Kind: Once, At: at}, nil
 
 	case "daily":
 		return &Schedule{Raw: r.Raw, Kind: Calendar, Entries: []Entry{{

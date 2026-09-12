@@ -42,6 +42,34 @@ type Backend interface {
 	Name() string
 }
 
+// Retirer is implemented by a backend that can remove a task from the
+// scheduler FROM INSIDE that task's own run. A once task does this after it
+// fires. The ordering hazard is platform-specific, which is why it is not
+// simply Disable followed by DeleteUnits:
+//
+//   - launchd's bootout SIGTERMs the job, and the job is the `every run`
+//     process doing the retiring, so it has to be the very last thing.
+//   - systemd's disable fails once the unit file is gone, leaving an elapsed
+//     timer loaded until logout, so there it has to come first.
+//
+// Everything durable (the store, the emitted output) must already be written
+// when this is called; the result is best-effort.
+type Retirer interface {
+	Retire(name string) error
+}
+
+// Retire removes a task from the scheduler from inside its own run, using the
+// backend's own ordering when it has one and the rm ordering otherwise.
+func Retire(b Backend, name string) error {
+	if r, ok := b.(Retirer); ok {
+		return r.Retire(name)
+	}
+	if err := b.Disable(name); err != nil {
+		return err
+	}
+	return b.DeleteUnits(name)
+}
+
 // UnsupportedScheduleError means the schedule is valid but this platform's
 // scheduler cannot express it -- Task Scheduler has no reliable sub-minute
 // repetition, for instance.

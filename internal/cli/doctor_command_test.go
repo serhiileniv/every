@@ -19,8 +19,8 @@ func TestBuiltinCommandsResolveOnWindows(t *testing.T) {
 	t.Setenv("COMSPEC", "cmd.exe")
 
 	for _, word := range []string{"echo", "dir", "copy", "del", "type", "set", "ECHO"} {
-		if !commandResolves(word) {
-			t.Errorf("commandResolves(%q) = false, want true: it is a cmd.exe builtin", word)
+		if !resolveCommand(word).login {
+			t.Errorf("resolveCommand(%q).login = false, want true: it is a cmd.exe builtin", word)
 		}
 	}
 }
@@ -34,7 +34,7 @@ func TestUnknownCommandStillFailsOnWindows(t *testing.T) {
 	t.Setenv("EVERY_SHELL", "")
 	t.Setenv("COMSPEC", "cmd.exe")
 
-	if commandResolves("every-no-such-command-vzzt") {
+	if resolveCommand("every-no-such-command-vzzt").login {
 		t.Error("an absent command resolved; the check is not checking anything")
 	}
 }
@@ -47,7 +47,7 @@ func TestRealExecutableResolvesOnWindows(t *testing.T) {
 	t.Setenv("EVERY_SHELL", "")
 	t.Setenv("COMSPEC", "cmd.exe")
 
-	if !commandResolves("where") {
+	if !resolveCommand("where").login {
 		t.Error("where.exe did not resolve; the PATH branch is broken")
 	}
 }

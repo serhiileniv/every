@@ -1,0 +1,17 @@
+{
+  "raw": "monthly 1st 9am",
+  "kind": "monthly",
+  "to_h": {
+    "raw": "monthly 1st 9am",
+    "kind": "monthly",
+    "entries": [
+      {
+        "hour": 9,
+        "minute": 0,
+        "day": 1
+      }
+    ]
+  },
+  "next_run": "2026-10-01T09:00:00-04:00",
+  "human": null
+}

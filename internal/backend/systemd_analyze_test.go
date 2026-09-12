@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"github.com/serhiileniv/every/internal/schedule"
 	"os/exec"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ func TestGeneratedOnCalendarIsAcceptedBySystemd(t *testing.T) {
 	seen := map[string]bool{}
 	var exprs []string
 	for _, sched := range loadSchedules(t) {
-		if sched.Kind != "calendar" {
+		if sched.Kind == schedule.Interval {
 			continue
 		}
 		for _, line := range CalendarLines(sched) {
@@ -41,7 +42,9 @@ func TestGeneratedOnCalendarIsAcceptedBySystemd(t *testing.T) {
 
 	for _, expr := range exprs {
 		t.Run(expr, func(t *testing.T) {
-			out, err := exec.Command(analyze, "calendar", expr).CombinedOutput()
+			// --base-time pins "now" to the fixtures' clock, so a once
+			// schedule's fixed date is still ahead and elapses.
+			out, err := exec.Command(analyze, "calendar", "--base-time=2026-09-02 10:30:00", expr).CombinedOutput()
 			if err != nil {
 				t.Errorf("systemd rejects %q:\n%s", expr, out)
 				return

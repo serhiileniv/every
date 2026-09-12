@@ -21,6 +21,16 @@ Dated log; append, don't rewrite.
 - **2026-07-24 — Schedule DSL kept tiny:** `Ns/Nm/Nh`, `hourly`, `day <time>`,
   `<weekday> <time>`. No cron expressions in v1 — the whole point is not being
   cron.
+- **2026-09-04 — `monthly` and `once` are their own kinds.** `monthly` could
+  have been `calendar` entries with a `day` field, but an older binary would
+  decode that as daily (unknown key dropped) and its start-up repair would
+  rewrite the unit to match; an unknown kind fails loudly and touches nothing.
+  `once` stores the resolved instant, not the phrase, so `once 9am` means the
+  same thing after midnight. It retires itself from inside its own run: store
+  first, scheduler last, because `launchctl bootout` terminates the job that
+  is doing the bootout. Gated on the instant, so a pre-flight `every run`
+  does not consume it. Delays are floored at a minute and rounded up to one,
+  since `StartCalendarInterval` has no seconds.
 - **2026-07-24 — Plists execute a runtime copy in `~/.local/share/every/runtime`,
   never the checkout.** Found by a live fire test: launchd-spawned ruby gets
   "Operation not permitted" reading anything under TCC-protected folders

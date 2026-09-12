@@ -37,6 +37,8 @@ answer to *"did it run?"*.
 every day 9am -- brew update
 every 30m -- '~/bin/sync-notes.sh'
 every monday 10:00 -- './weekly-report.sh'
+every monthly 1st 9am -- './invoice.sh'
+every once tomorrow 9am -- './remind-me.sh'     # runs once, then removes itself
 ```
 
 ```
@@ -137,6 +139,13 @@ installer verifies the download against the release checksums, and sets up
 | `day 9am,6pm` | daily, several times |
 | `weekdays 9:30` · `weekends 11am` | Mon–Fri / Sat+Sun |
 | `monday 10:00` · `monday,thursday 6pm` | weekly on those days |
+| `monthly 1st 9am` · `monthly 1,15 18:00` | on those days of the month (29–31 skip shorter months) |
+| `once 15:30` · `once tomorrow 9am` · `once friday 5pm` | one time only: today (or tomorrow if it's passed), a day, a weekday |
+| `once 2026-12-24 18:00` · `once 45m` | one time only: a date, or a delay from now (≥ 1 minute) |
+
+A `once` task fires and then removes itself, logs and all history kept — `every log <name>`
+still works after it's gone. Until its moment, it's an ordinary task: `every run <name>`
+beforehand checks the command without using it up.
 
 ## Commands
 
@@ -180,6 +189,17 @@ Follows `sysexits.h`, so scripts can branch on `$?`:
   would at a prompt — wrap the whole thing in one quoted string when in doubt:
   `every day 9am -- 'pg_dump db | gzip > ~/backup.gz'`,
   `every 1h -- 'touch "my file.txt"'`.
+- **PATH is the login shell's, not your terminal's.** Scheduled runs go through
+  `zsh -l` / `bash -l`, which read `~/.zprofile` / `~/.bash_profile` — not
+  `~/.zshrc`. A `PATH` line that lives only in `~/.zshrc` works when you type
+  the command and fails under the scheduler with `command not found`.
+  `every doctor` probes in a clean login shell and tells you which file to move
+  the line to.
+- **One-shots** land on a whole minute (launchd calendar triggers have no
+  seconds), so `once 90s` means "the next whole minute at least 90 s away". A
+  one-shot the machine slept through fires on wake like any calendar task; one
+  it was powered off across shows as `missed` in `every list` and needs to be
+  re-added (`every rm`, then `every once …`).
 - **Timeouts:** add `--timeout 30m` to kill a run that overruns — otherwise a
   task that hangs will block its own next run (the OS won't start a second copy
   of the same task). The kill takes the whole process tree with it.
