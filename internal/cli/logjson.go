@@ -41,19 +41,18 @@ func (c *CLI) logJSON(name string, n int, withOutput bool) error {
 	if err != nil {
 		return err
 	}
-	// Deliberately NOT gated on the task existing: the text form reports "no
-	// logs" for an unknown name too, because logs outlive the task that made
-	// them and `every rm` keeps them on purpose.
-	_ = s
-
+	// Deliberately NOT gated on the task existing: logs outlive the task that
+	// made them and `every rm` keeps them on purpose, so a removed task's log
+	// is still readable by name.
+	//
 	// The same condition the text form treats as a failure, treated the same
-	// way here. An empty list would arguably be friendlier, but the two forms
-	// of one command must agree about whether it failed -- otherwise a program
-	// and a person reading the same exit code reach opposite conclusions, and
-	// the exit code is the part every caller sees.
+	// way here -- via the same helper, so the code and the message cannot drift
+	// between the two forms. An empty list would arguably be friendlier, but
+	// the two forms of one command must agree about whether it failed --
+	// otherwise a program and a person reading the same exit code reach
+	// opposite conclusions, and the exit code is the part every caller sees.
 	if _, statErr := os.Stat(c.Dirs.Logs + "/" + name + ".log"); statErr != nil {
-		return noInputCoded(CodeNoLogs, name,
-			"no logs yet for %s (has it run? check: every list)", rubyInspect(name))
+		return c.noLogsError(name)
 	}
 
 	lines, err := tail.Lines(s.RunsPath(name), n)

@@ -194,11 +194,12 @@ type resolution struct {
 // On Unix the probe is the runner's login shell with an environment reduced
 // to what launchd or systemd would hand it, so ~/.zshrc-only PATH additions
 // are absent, as they are at fire time. Windows has no login-shell split; the
-// user PATH there is the scheduler's PATH.
+// probe asks whichever shell the task will run in, since a cmd.exe builtin is
+// not a file on disk.
 func resolveCommand(word string) resolution {
 	var res resolution
 	if runtime.GOOS == "windows" {
-		res.login = exec.Command("where.exe", word).Run() == nil
+		res.login = windowsCommandResolves(word)
 		return res
 	}
 	if p, err := exec.LookPath(word); err == nil {
@@ -230,6 +231,58 @@ func resolvesInCleanLoginShell(word string) bool {
 // shellQuote single-quotes a word for the probe. bareWordRe already excludes
 // anything that would need escaping; this is belt and braces.
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+// cmdBuiltins are cmd.exe's internal commands.
+//
+// They are not files anywhere on disk, so where.exe cannot find them and the
+// check reported a perfectly working task as broken. `echo` is the one that
+// mattered: the installer's own closing hint is
+//
+//	every day 9am -- echo it ran
+//
+// so the first task a new Windows user scheduled made `every doctor` print a
+// problem and exit 1, directly above a "last run ok" for the same task.
+//
+// From `help` in cmd.exe, minus the ones that cannot begin a useful task.
+var cmdBuiltins = map[string]bool{
+	"assoc": true, "break": true, "call": true, "cd": true, "chdir": true,
+	"cls": true, "color": true, "copy": true, "date": true, "del": true,
+	"dir": true, "dpath": true, "echo": true, "endlocal": true, "erase": true,
+	"exit": true, "for": true, "ftype": true, "goto": true, "if": true,
+	"md": true, "mkdir": true, "mklink": true, "move": true, "path": true,
+	"pause": true, "popd": true, "prompt": true, "pushd": true, "rd": true,
+	"rem": true, "ren": true, "rename": true, "rmdir": true, "set": true,
+	"setlocal": true, "shift": true, "start": true, "time": true,
+	"title": true, "type": true, "ver": true, "verify": true, "vol": true,
+}
+
+// windowsCommandResolves asks whichever shell the task will actually use.
+//
+// EVERY_SHELL can point at PowerShell, and then the question is a different
+// one: `Write-Output` is not a file either, and `echo` resolves as an alias
+// rather than as a builtin. Asking the wrong shell gives a confidently wrong
+// answer, which is worse than no check at all.
+func windowsCommandResolves(word string) bool {
+	shell := os.Getenv("EVERY_SHELL")
+	if shell == "" {
+		shell = os.Getenv("COMSPEC")
+	}
+	base := strings.ToLower(filepath.Base(shell))
+	base = strings.TrimSuffix(base, ".exe")
+
+	if base == "powershell" || base == "pwsh" {
+		// Single-quoted, quotes doubled: -Command takes one string, and the
+		// word comes from the user's own task.
+		lit := "'" + strings.ReplaceAll(word, "'", "''") + "'"
+		return exec.Command(shell, "-NoLogo", "-NoProfile", "-NonInteractive",
+			"-Command", "Get-Command -Name "+lit+" -ErrorAction Stop").Run() == nil
+	}
+
+	if cmdBuiltins[strings.ToLower(word)] {
+		return true
+	}
+	return exec.Command("where.exe", word).Run() == nil
+}
 
 // doctorCwd warns about the macOS privacy folders, where a scheduler-spawned
 // process can see a directory and still be refused when it reads it.

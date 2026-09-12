@@ -85,7 +85,10 @@ func TestJSONErrorsAreStructuredOnStderr(t *testing.T) {
 		code string
 		exit int
 	}{
-		{[]string{"log", "nosuch"}, CodeNoLogs, 66},
+		// A name that is not a task at all answers no_such_task, like every
+		// other command. no_logs is reserved for a task that exists and has
+		// not run yet -- see TestLogDistinguishesUnknownTaskFromNoRuns.
+		{[]string{"log", "nosuch"}, CodeNoSuchTask, 66},
 		{[]string{"rm", "nosuch"}, CodeNoSuchTask, 66},
 		{[]string{"inspect", "nosuch"}, CodeNoSuchTask, 66},
 		{[]string{"banana", "--", "true"}, CodeBadSchedule, 64},

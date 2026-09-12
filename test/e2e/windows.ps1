@@ -15,6 +15,23 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# PowerShell 7+ only, and it fails fast rather than lying.
+#
+# Windows PowerShell 5.1 re-tokenises native-command arguments that contain
+# quotes: `-- 'echo "my file.txt"'` arrives at every.exe as several arguments,
+# and the seeding and quoting assertions below fail for a reason that has
+# nothing to do with every. PowerShell 7 fixed it
+# ($PSNativeCommandArgumentPassing = 'Standard'), which is what CI runs, so the
+# failures only ever appeared on a developer's own machine -- where they read
+# exactly like real bugs.
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+  Write-Host "every E2E needs PowerShell 7 (pwsh); this is $($PSVersionTable.PSVersion)." -ForegroundColor Red
+  Write-Host "  5.1 re-tokenises native arguments containing quotes, so the quoting"
+  Write-Host "  assertions would fail for reasons unrelated to every."
+  Write-Host "  Run: pwsh -File test/e2e/windows.ps1 -Prefix <prefix>"
+  exit 2
+}
 $EveryCmd = Join-Path $Prefix "bin\every.exe"
 $script:pass = 0
 $script:fail = 0

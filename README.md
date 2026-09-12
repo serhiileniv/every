@@ -6,7 +6,7 @@
 
 <p align="center"><strong>Schedule anything on your computer. Actually know it ran.</strong></p>
 
-<p align="center"><sub>launchd on macOS · systemd on Linux (beta) · Task Scheduler on Windows · zero dependencies</sub></p>
+<p align="center"><sub>launchd on macOS · systemd on Linux · Task Scheduler on Windows · zero dependencies</sub></p>
 
 <p align="center">
   <a href="https://github.com/serhiileniv/every/actions/workflows/test.yml"><img src="https://github.com/serhiileniv/every/actions/workflows/test.yml/badge.svg" alt="test"></a>
