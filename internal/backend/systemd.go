@@ -18,6 +18,10 @@ func NewSystemd(cfg Config) *Systemd { return &Systemd{cfg: cfg} }
 
 func (s *Systemd) Name() string { return "systemd" }
 
+// CatchesUpMissed: the timers carry Persistent=true, so systemd runs a calendar
+// trigger the machine was off across at the next boot. See TimerUnit.
+func (s *Systemd) CatchesUpMissed() bool { return true }
+
 var systemdDays = [...]string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 
 func (s *Systemd) unitBase(name string) string { return "every-" + name }

@@ -21,3 +21,31 @@ func lockExclusive(f *os.File) error {
 		return err
 	}
 }
+
+func lockShared(f *os.File) error {
+	for {
+		err := syscall.Flock(int(f.Fd()), syscall.LOCK_SH)
+		if err == syscall.EINTR {
+			continue
+		}
+		return err
+	}
+}
+
+// tryLockExclusive reports false, not an error, when another descriptor holds
+// the lock. On success the probe's lock is released before returning.
+func tryLockExclusive(f *os.File) (held bool, err error) {
+	for {
+		err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		switch err {
+		case syscall.EINTR:
+			continue
+		case nil:
+			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+			return false, nil
+		case syscall.EWOULDBLOCK:
+			return true, nil
+		}
+		return false, err
+	}
+}

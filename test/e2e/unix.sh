@@ -247,5 +247,63 @@ else
   else bad "scheduler dir drift" "$(printf '%s\n---\n%s' "$before_agents" "$after_agents" | head -6)"; fi
 fi
 
+# ---------------------------------------------------------- real one-shots
+# A one-shot has to be seen firing from the scheduler itself. Every unit test
+# drove `run` directly, and one-shots shipped never running on launchd: the
+# start-up pass inside the scheduled `every run` unloaded the job, and launchd
+# answers that by killing the process before it ran anything.
+sec "7. real $BACKEND one-shots"
+if [ "$SCHED_OK" -eq 0 ]; then
+  skipped "no usable user scheduler on this host — one-shot firing not exercised"
+else
+  ONCE="${PROBE}once"; LONG="${PROBE}long"; MARK="$EVERY_HOME/e2e-marks"
+  rm -rf "$MARK"; mkdir -p "$MARK"
+
+  "$EVERY" once 1m --name "$ONCE" -- "touch '$MARK/once'" >/dev/null 2>&1
+  same "once add exits 0" 0 $?
+  "$EVERY" once 1m --name "$LONG" -- "touch '$MARK/long-started'; sleep 20; touch '$MARK/long-done'" >/dev/null 2>&1
+  same "long once add exits 0" 0 $?
+
+  # `once 1m` lands on a whole minute at least 60s away: up to two minutes.
+  if wait_until 180 "[ -f '$MARK/once' ]"
+  then ok "one-shot fired from the scheduler"; else bad "one-shot fired" "no marker after 180s"; fi
+  has "one-shot run logged" "$("$EVERY" log "$ONCE" 2>&1)" "exit=0"
+
+  if wait_until 60 "[ -f '$MARK/long-started' ]"
+  then ok "long one-shot started"; else bad "long one-shot started" "no marker"; fi
+  # `list` during the run is what used to unload -- and kill -- it.
+  seen_running=0; i=0
+  while [ "$i" -lt 5 ]; do
+    out=$("$EVERY" list 2>&1)
+    case "$out" in *"$LONG"*running*) seen_running=1;; esac
+    "$EVERY" doctor >/dev/null 2>&1
+    sleep 1; i=$((i + 1))
+  done
+  same "list shows the long one-shot as running" 1 "$seen_running"
+  if wait_until 45 "[ -f '$MARK/long-done' ]"
+  then ok "long one-shot survived list/doctor and finished"; else bad "long one-shot finished" "killed mid-run?"; fi
+
+  for n in "$ONCE" "$LONG"; do
+    if wait_until 20 "! \"$EVERY\" list 2>/dev/null | grep -q $n"
+    then ok "$n retired itself from the store"; else bad "$n retired" "still listed"; fi
+    if wait_until 20 "! ls \"$AGENTS\" 2>/dev/null | grep -qi $n"
+    then ok "$n unit removed"; else bad "$n unit removed" "still in $AGENTS"; fi
+    case "$BACKEND" in
+      launchd)
+        if wait_until 20 "! launchctl list 2>/dev/null | grep -qi $n"
+        then ok "$n unloaded from launchctl"; else bad "$n unloaded" "still listed"; fi ;;
+      systemd)
+        if wait_until 20 "! systemctl --user list-timers --all 2>/dev/null | grep -qi $n"
+        then ok "$n timer removed"; else bad "$n unloaded" "still listed"; fi ;;
+    esac
+    "$EVERY" rm "$n" >/dev/null 2>&1 # leave nothing behind on failure
+  done
+
+  after_agents=$(ls "$AGENTS" 2>/dev/null | sort)
+  if [ "$before_agents" = "$after_agents" ]
+  then ok "$AGENTS identical to its pre-test state after one-shots"
+  else bad "scheduler dir drift" "$(printf '%s\n---\n%s' "$before_agents" "$after_agents" | head -6)"; fi
+fi
+
 printf '\n-- %d passed, %d failed, %d skipped --\n' "$pass" "$fail" "$skip"
 [ "$fail" -eq 0 ]

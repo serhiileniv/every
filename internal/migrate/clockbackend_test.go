@@ -92,7 +92,7 @@ func TestNoRepairWhenOnlyEncodingAndClockDiffer(t *testing.T) {
 	// pass runs -- the ordinary case, not an upgrade.
 	b.now = b.now.Add(37 * time.Second)
 
-	res := Run(dirs, b, b.launcher, "0.5.1")
+	res := Run(dirs, b, b.launcher, "0.5.1", time.Now())
 	if len(res.Repaired) != 0 {
 		t.Errorf("repaired %v, want nothing: the unit is current, only its "+
 			"encoding and clock stamp differ", res.Repaired)
@@ -118,7 +118,7 @@ func TestRepairStillHappensThroughCanonicalUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res := Run(dirs, b, b.launcher, "0.5.1")
+	res := Run(dirs, b, b.launcher, "0.5.1", time.Now())
 	if len(res.Repaired) != 1 || res.Repaired[0] != "backup" {
 		t.Fatalf("repaired %v, want [backup]", res.Repaired)
 	}

@@ -30,6 +30,53 @@ type CLI struct {
 	// Launcher is the path the scheduler invokes, needed to tell whether the
 	// units on disk were written for this binary or an older runtime.
 	Launcher string
+
+	// Recolor rebuilds the colour decision once --color has been parsed out of
+	// argv, which cannot happen before the CLI is constructed. Left nil, the
+	// flag is still accepted and Color is simply whatever the caller built --
+	// which is what the tests want, since they write to a buffer.
+	Recolor func(ui.Mode) ui.Color
+}
+
+// applyColorFlag strips --color from the tokens ahead of `--` and applies it.
+//
+// A global flag rather than a per-command one: "do not paint this" is a
+// property of the invocation, not of `list` in particular, and a user who
+// pipes one command pipes them all.
+func (c *CLI) applyColorFlag(argv []string) ([]string, error) {
+	if len(argv) == 0 {
+		return argv, nil
+	}
+	// argv[0] is the command or the schedule's first token, never a flag --
+	// the same rule --json follows.
+	head, tail := argv[:1], argv[1:]
+
+	// Only the flag half: after `--` the tokens are the user's command, and a
+	// --color it passes to its own program is none of our business.
+	cut := len(tail)
+	for i, tok := range tail {
+		if tok == "--" {
+			cut = i
+			break
+		}
+	}
+	pre, rest := tail[:cut], tail[cut:]
+
+	pre, value, found, err := extractValueFlag(pre, "--color")
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return argv, nil
+	}
+	mode, ok := ui.ParseMode(value)
+	if !ok {
+		return nil, coded(CodeUsage, "", "--color wants auto, always or never, got %s", rubyInspect(value))
+	}
+	if c.Recolor != nil {
+		c.Color = c.Recolor(mode)
+	}
+	return append(append(append([]string{}, head...), pre...), rest...), nil
 }
 
 // Run dispatches one invocation and returns the process exit code.
@@ -43,7 +90,12 @@ func (c *CLI) Run(argv []string) int {
 	// handle one of each.
 	asJSON := wantsJSON(argv)
 
-	err := c.dispatch(argv)
+	argv, err := c.applyColorFlag(argv)
+	if err != nil {
+		return c.renderError(err, asJSON)
+	}
+
+	err = c.dispatch(argv)
 	if err == nil {
 		return 0
 	}
@@ -130,16 +182,45 @@ func (c *CLI) dispatch(argv []string) error {
 	// Only for commands that are already touching the store or the scheduler:
 	// `help` and `version` must stay usable on a broken install, and must not
 	// take a detour through the data dir to print three lines.
+	//
+	// `run` repairs too, from runCommand: it has to mark the task running
+	// first. See holdRun.
 	switch argv[0] {
-	case "list", "ls", "run", "doctor", "inspect", "show", "set":
-		c.migrate(wantsJSON(argv))
+	case "list", "ls", "doctor", "inspect", "show", "set":
+		c.migrate()
+	}
+
+	// -h/--help anywhere before `--` prints help, whatever the subcommand.
+	//
+	// Ahead of dispatch because each command would otherwise have to remember:
+	// `every log --help` used to look up a task literally named "--help", and
+	// under the flag strictness added in 0.6 it would have become "unknown
+	// flag", which is a worse answer than the help the user asked for.
+	//
+	// The subcommand's own page when there is one, so `every log --help` is
+	// about log. A schedule in argv[0] -- `every 15m --help` -- has no page
+	// and falls through to the full help.
+	if len(argv) > 1 && wantsHelp(argv[1:]) {
+		if page := topicHelpText(argv[0]); page != "" {
+			fmt.Fprint(c.Stdout, page)
+			return nil
+		}
+		fmt.Fprint(c.Stdout, helpText(c.Dirs.Data))
+		return nil
 	}
 
 	switch argv[0] {
 	case "help", "-h", "--help":
-		fmt.Fprint(c.Stdout, helpText(c.Dirs.Data))
-		return nil
-	case "version", "--version":
+		return c.help(argv[1:])
+	case "version", "--version", "-V", "-v":
+		if rest, _ := stripJSONFlag(argv[1:]); len(rest) > 0 {
+			if err := rejectUnknownFlags(rest); err != nil {
+				return err
+			}
+			if err := rejectExtraArgs(rest); err != nil {
+				return err
+			}
+		}
 		if wantsJSON(argv) {
 			return emitJSON(c.Stdout, versionPayload{
 				Version: Version, Tagline: Tagline, Homepage: Homepage,
@@ -189,8 +270,19 @@ func (c *CLI) dispatch(argv []string) error {
 // surface table, so flags added later are documented in help and the man page
 // rather than appended to these lines.
 func requireName(args []string, usage string) (string, error) {
+	// Unknown flags are rejected before the name is read, so `every rm --oops x`
+	// says what is actually wrong instead of removing x.
+	if err := rejectUnknownFlags(args); err != nil {
+		return "", err
+	}
 	if len(args) == 0 || args[0] == "" {
 		return "", invocationf("%s", usage)
+	}
+	// These commands take exactly one name. A second positional is a mistake
+	// -- most often a shell that split an unquoted name -- and acting on the
+	// first while ignoring the rest is the wrong half to guess at.
+	if err := rejectExtraArgs(args[1:]); err != nil {
+		return "", err
 	}
 	return args[0], nil
 }
@@ -230,10 +322,20 @@ func (c *CLI) parseAddSpec(argv []string, verb string) (*addSpec, error) {
 			return nil, coded(CodeUsage, "",
 				"set <when> --name <name> -- <command>   (the `--` separates them)")
 		}
+		// A suggestion only when the token cannot be a schedule. `every 15m`
+		// is not a command either, and "did you mean list" would be a wrong
+		// answer to a correct invocation that merely lacks its `--`.
+		hint := ""
+		if _, schedErr := schedule.ParseAt(argv[:1], c.Now()); schedErr != nil {
+			if guess := suggestCommand(argv[0]); guess != "" {
+				hint = fmt.Sprintf("  did you mean:  every %s\n", guess)
+			}
+		}
 		return nil, coded(CodeUsage, "", "%s isn't a command, and there's no `--` before a task.\n"+
+			"%s"+
 			"  to schedule:  every <when> -- <command>   (e.g. every day 9am -- brew update)\n"+
 			"  commands:     list, log, run, pause, resume, rm, doctor, version",
-			rubyInspect(argv[0]))
+			rubyInspect(argv[0]), hint)
 	}
 
 	// --json is stripped from the flag half only, and only here -- stripping it
@@ -270,6 +372,12 @@ func (c *CLI) parseAddSpec(argv []string, verb string) (*addSpec, error) {
 	}
 	if hasOnFail {
 		spec.onFail = onFail
+	}
+
+	// Before the schedule parser sees them, so an unknown flag is reported as
+	// one rather than as an unparseable schedule token.
+	if err := rejectUnknownFlags(pre); err != nil {
+		return nil, err
 	}
 
 	// The CLI clock, not the wall clock: a once schedule resolves "9am" to
@@ -427,34 +535,60 @@ func (c *CLI) noLogsError(name string) error {
 func (c *CLI) log(args []string) error {
 	args, asJSON := stripJSONFlag(args)
 	args, withOutput := removeFlag(args, "--with-output")
+	args, follow := removeFlag(args, "--follow")
+	if rest, short := removeFlag(args, "-f"); short {
+		args, follow = rest, true
+	}
 	n := 40
 	var rest []string
 	for i := 0; i < len(args); i++ {
 		// -n is accepted before or after the name.
-		if args[i] == "-n" && i+1 < len(args) {
-			if v, err := parseInt(args[i+1]); err == nil && v > 0 {
-				n = v
+		if args[i] == "-n" {
+			if i+1 >= len(args) {
+				return coded(CodeUsage, "", "-n needs a value")
 			}
+			v, err := parseCount(args[i+1])
+			if err != nil {
+				return err
+			}
+			n = v
 			i++
 			continue
 		}
 		rest = append(rest, args[i])
 	}
 
+	if err := rejectUnknownFlags(rest); err != nil {
+		return err
+	}
 	name, err := requireName(rest, "log <name> [-n N]")
 	if err != nil {
 		return err
 	}
 
 	if asJSON {
+		if follow {
+			// A stream of prose is not the shape `every schema log` promises,
+			// and emitting it under --json would break the one contract a
+			// program relies on. Refused rather than silently ignored.
+			return coded(CodeUsage, "", "--follow cannot be combined with --json")
+		}
 		return c.logJSON(name, n, withOutput)
 	}
 
-	path := c.Dirs.Logs + "/" + name + ".log"
-	if _, err := os.Stat(path); err != nil {
+	if follow {
+		// A log that does not exist yet is something to wait for under -f,
+		// so the no_logs check below is deliberately skipped.
+		if err := c.followLog(name, n); err != nil && err != errFollowStopped {
+			return err
+		}
+		return nil
+	}
+
+	if !c.logExists(name) {
 		return c.noLogsError(name)
 	}
-	lines, err := tailLines(path, n)
+	lines, err := c.tailLog(name, n)
 	if err != nil {
 		return err
 	}
@@ -618,9 +752,44 @@ func (c *CLI) runCommand(args []string) error {
 		return err
 	}
 	if dryRun {
+		c.migrate()
 		return c.runDryRun(name, asJSON)
 	}
+	if lock := c.holdRun(name); lock != nil {
+		defer lock.Close()
+	}
+	c.migrate()
 	return c.runTask(name, asJSON)
+}
+
+// holdRun marks a task as running for the rest of this process, and must come
+// before the repair pass.
+//
+// On launchd a scheduled run IS the job, and the pass unloads one-shots whose
+// moment has passed and re-registers stale units -- both of which launchd
+// answers by killing the job. Without the mark, a one-shot's own firing killed
+// it before its command ran, and so did an `every list` typed during a long
+// one. The pass skips anything marked running.
+//
+// Nil for a name the store does not have, so a typo leaves no lock file
+// behind; runTask reports it. Best-effort otherwise: failing to mark a run is
+// no reason not to run it.
+func (c *CLI) holdRun(name string) *store.Lock {
+	if naming.Validate(name) != nil {
+		return nil
+	}
+	s, err := store.Load(c.Dirs.Data)
+	if err != nil {
+		return nil
+	}
+	if _, ok := s.Tasks.Get(name); !ok {
+		return nil
+	}
+	lock, err := store.HoldRun(c.Dirs.Data, name)
+	if err != nil {
+		return nil
+	}
+	return lock
 }
 
 func (c *CLI) runTask(name string, asJSON bool) error {
@@ -639,6 +808,9 @@ func (c *CLI) runTask(name string, asJSON bool) error {
 	// Read before the run: the store may change underneath a long command,
 	// and retire re-checks under the lock anyway.
 	onceAt, isOnce := onceInstant(task)
+	if isOnce && c.firedAYearLate(onceAt) {
+		return c.refuseYearLate(name, onceAt)
+	}
 
 	r := runner.New(c.Dirs, c.Stdout, c.Stderr, c.Color)
 	if asJSON {
@@ -680,6 +852,36 @@ func (c *CLI) runTask(name string, asJSON bool) error {
 		return &exitError{code: code, errorCode: CodeInternal, name: name}
 	}
 	return nil
+}
+
+// firedAYearLate reports a one-shot invoked at least a year after its moment on
+// a scheduler that drops missed triggers.
+//
+// launchd's plist has Month, Day, Hour and Minute but no Year, so a unit that
+// survived a year fires again on the same date. The start-up pass normally
+// removes it long before -- see migrate.disarmMissedOnce -- but only if some
+// every command ran in that year. A day short of a year, because launchd runs
+// a trigger it slept through on wake: this is about the re-fire, not about
+// lateness, and anything less late is still a run the user asked for.
+func (c *CLI) firedAYearLate(at time.Time) bool {
+	return !c.catchesUpMissed() && !c.Now().Before(at.AddDate(1, 0, -1))
+}
+
+// refuseYearLate removes the unit and keeps the store entry, which is exactly
+// what disarming a missed one-shot does: `list` goes on saying missed and
+// `every rm` clears it. Unregistering ends this process when launchd started
+// it, so nothing a scheduled run would print survives -- the state it leaves
+// is the report.
+func (c *CLI) refuseYearLate(name string, at time.Time) error {
+	_ = backend.Retire(c.Backend, name)
+	return &exitError{
+		code:      1,
+		errorCode: CodeMissed,
+		name:      name,
+		msg: fmt.Sprintf("every: %s was due %s and missed; not running a one-shot a year late — "+
+			"every rm %s, then every once … to schedule it again",
+			name, at.Format("2006-01-02 15:04"), name),
+	}
 }
 
 // onceInstant is the instant of a once task, and whether it is one.
@@ -781,17 +983,42 @@ func (c *CLI) runDryRun(name string, asJSON bool) error {
 // Failures are surfaced but never fatal: a task that cannot be repaired must
 // not stop the command the user actually asked for, and the message tells them
 // how to fix it by hand.
-// migrate repairs stale scheduler units and reports what it did.
 //
-// The report is suppressed under --json: it is prose on stdout, and stdout is
-// the data channel. A repaired task still shows up in the data itself, and
-// doctor reports it explicitly.
-func (c *CLI) migrate(quiet bool) {
+// The report goes to stderr, so stdout stays the data channel. It used to go
+// to stdout and be suppressed under --json, which protected programs and left
+// `every list > tasks.txt` capturing the notice -- the gate was the workaround,
+// stderr is the fix.
+func (c *CLI) migrate() {
 	if c.Backend == nil {
 		return
 	}
-	res := migrate.Run(c.Dirs, c.Backend, c.Launcher, Version)
-	if res.Any() && !quiet {
-		migrate.Report(c.Stdout, res)
+	res := migrate.Run(c.Dirs, c.Backend, c.Launcher, Version, c.Now())
+	if res.Any() {
+		migrate.Report(c.Stderr, res)
 	}
+}
+
+// help prints the full page, or one command's.
+//
+// `every help` is the index; `every help <command>` is the entry. The index
+// stays what a bare invocation prints, because "what can this do" and "how do
+// I use this one" are different questions and a page that answers one badly
+// answers neither.
+func (c *CLI) help(args []string) error {
+	if err := rejectUnknownFlags(args); err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		fmt.Fprint(c.Stdout, helpText(c.Dirs.Data))
+		return nil
+	}
+	if err := rejectExtraArgs(args[1:]); err != nil {
+		return err
+	}
+	page := topicHelpText(args[0])
+	if page == "" {
+		return unknownTopic(args[0])
+	}
+	fmt.Fprint(c.Stdout, page)
+	return nil
 }

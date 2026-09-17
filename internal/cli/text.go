@@ -13,7 +13,7 @@ import "fmt"
 // produced the binary rather than a constant somebody forgot to bump. It is a
 // var, not a const, for exactly that reason -- the linker cannot rewrite a
 // const. The fallback value is what a plain `go build` reports.
-var Version = "0.5.1"
+var Version = "0.6.0"
 
 // Tagline and Homepage identify the tool in `version` and `help`.
 const (
@@ -54,13 +54,17 @@ add a task:
   --quiet.
 
 manage:
-  every list                what's scheduled, last/next run, ok/FAIL
-  every log <name> [-n N]   output of recent runs
+  every list [--failing]    what's scheduled, last/next run, ok/FAIL
+  every log <name> [-n N]   output of recent runs (-f to follow live)
   every run <name>          run it right now (prints output, logs too)
   every pause <name>        stop scheduling (keeps the task)
   every resume <name>       start again
   every rm <name>           remove task (logs are kept)
   every doctor              explain why something isn't running
+
+  every help <command>      how to use one command, with examples
+                            (also: every <command> --help)
+  every help schedules      every schedule form there is
 
 for scripts and agents:
   every set <when> --name <n> -- <cmd>   add, or update in place
@@ -72,6 +76,31 @@ for scripts and agents:
   --json works on every command above, and on failures: the error goes to
   stderr as {"error":"no_such_task",...} with the same exit code as always.
   every log --json omits captured output unless you add --with-output.
+
+anywhere:
+  -h, --help        this text; after a command, that command's page
+  -V, --version     version (also: every version)
+  --color WHEN      auto, always or never — overrides the tty guess
+  Unknown flags and unexpected arguments are an error, never ignored, so
+  a typo'd --json fails loudly instead of quietly printing the wrong
+  thing.
+
+aliases:  ls = list, show = inspect, remove = rm
+
+exit codes (sysexits.h, so scripts can branch on $?):
+  0   success
+  64  usage error (bad arguments, unknown flag)
+  66  no such task, or no logs yet
+  1   anything else
+  every run exits with the command's own code, 124 on --timeout,
+  or 128+signum if a signal killed it.
+
+environment:
+  EVERY_HOME        override the data dir entirely
+  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)
+  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)
+  EVERY_SHELL       Windows only: the shell tasks run through
+  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks
 
 data:  %s
 more:  %s

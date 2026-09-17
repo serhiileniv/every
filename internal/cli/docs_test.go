@@ -89,12 +89,20 @@ func TestDocumentedSchedulesAllParse(t *testing.T) {
 	t.Logf("checked %d documented schedule examples: %v", len(examples), examples)
 }
 
-// isSubcommand filters out `every list`, `every doctor` and friends -- those
+// isSubcommand filters out `every list`, `every inspect` and friends -- those
 // are commands, not schedules, and are covered by the surface table.
+//
+// Driven off Commands rather than its own list, which is how `every inspect
+// backup --json` in the README came to be checked as a schedule: the local copy
+// had not heard of the verbs 0.5.0 added.
 func isSubcommand(tok string) bool {
+	for _, c := range Commands {
+		if tok == c {
+			return true
+		}
+	}
 	switch tok {
-	case "list", "ls", "log", "run", "pause", "resume", "rm", "remove",
-		"doctor", "version", "help", "task:", "add":
+	case "task:", "add":
 		return true
 	}
 	return strings.HasPrefix(tok, "-")
@@ -216,4 +224,162 @@ func runWithHome(t *testing.T, bin string, args ...string) (string, int) {
 	cmd.Env = append(os.Environ(), "EVERY_HOME="+t.TempDir(), "NO_COLOR=1")
 	out, err := cmd.CombinedOutput()
 	return string(out), exitCodeOf(cmd, err)
+}
+
+// Commands is every user-facing verb the dispatcher accepts.
+//
+// Duplicating the dispatch switch is the point: this list is the promise, the
+// switch is the implementation, and a command added to one but not the other is
+// the drift TestEverySurfaceDocumentsEveryCommand catches. The `__` test hooks
+// are deliberately absent -- they are not user-facing and must stay
+// undocumented.
+var Commands = []string{
+	"list", "ls", "log", "run", "pause", "resume", "rm", "remove",
+	"doctor", "inspect", "show", "exists", "set", "schema", "version", "help",
+}
+
+// Every command must be recognised by the binary AND documented everywhere a
+// user might look for it.
+//
+// This test exists because half of a 0.6.0 doc audit was one finding repeated:
+// `set`, `inspect`, `exists` and `schema` shipped in 0.5.0 and reached none of
+// the README, the completions, or (in places) the man page. Nothing failed,
+// because nothing connected the dispatcher to the files that describe it.
+func TestEverySurfaceDocumentsEveryCommand(t *testing.T) {
+	root := repoRoot(t)
+	bin := buildBinary(t)
+
+	helpOut, err := exec.Command(bin, "help").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	surfaces := map[string]string{
+		"every help":             string(helpOut),
+		"man/every.1":            readOrSkip(t, filepath.Join(root, "man", "every.1")),
+		"README.md":              readOrSkip(t, filepath.Join(root, "README.md")),
+		"completions/every.bash": readOrSkip(t, filepath.Join(root, "completions", "every.bash")),
+		"completions/_every":     readOrSkip(t, filepath.Join(root, "completions", "_every")),
+		"completions/every.fish": readOrSkip(t, filepath.Join(root, "completions", "every.fish")),
+	}
+
+	for _, cmd := range Commands {
+		t.Run(cmd, func(t *testing.T) {
+			// Recognised: it must not fall through to `add`.
+			out, _ := runWithHome(t, bin, cmd)
+			if strings.Contains(out, "isn't a command") {
+				t.Errorf("%q is not recognised by the binary", cmd)
+			}
+			for surface, text := range surfaces {
+				if !mentionsCommand(text, cmd) {
+					t.Errorf("%s does not mention the %q command", surface, cmd)
+				}
+			}
+		})
+	}
+}
+
+// mentionsCommand looks for the verb as a whole word, so "run" is not satisfied
+// by "running" and "ls" is not satisfied by "false".
+//
+// roff font escapes are stripped first: the man page writes `\fBls\fR`, where
+// the B abutting the word defeats a \b boundary and the command reads as
+// undocumented when it is not.
+func mentionsCommand(text, cmd string) bool {
+	text = roffEscapes.ReplaceAllString(text, " ")
+	re := regexp.MustCompile(`(?m)\b` + regexp.QuoteMeta(cmd) + `\b`)
+	return re.MatchString(text)
+}
+
+var roffEscapes = regexp.MustCompile(`\\f[BIRP]|\\\(em|\\-`)
+
+func readOrSkip(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("a documented surface is missing: %s: %v", path, err)
+	}
+	return string(raw)
+}
+
+// Every command has a help page, and every page names a real command.
+//
+// The same drift TestEverySurfaceDocumentsEveryCommand catches for the shipped
+// files, caught for the pages inside the binary. A command added to dispatch
+// with no page is the failure mode: `every newverb --help` would silently fall
+// through to the full help, which looks like it worked.
+func TestEveryCommandHasAHelpTopic(t *testing.T) {
+	for _, cmd := range Commands {
+		if _, ok := helpTopicFor(cmd); !ok {
+			t.Errorf("no help topic for the %q command", cmd)
+		}
+	}
+
+	// And nothing documents a command that does not exist. "schedules" is the
+	// one page that is not a command, deliberately -- the schedule DSL is the
+	// part people actually need to look up.
+	for _, topic := range helpTopicNames() {
+		if topic == "schedules" {
+			continue
+		}
+		found := false
+		for _, cmd := range Commands {
+			if topic == cmd {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("help topic %q is not a command", topic)
+		}
+	}
+}
+
+// A topic's page must actually be about that command: the synopsis names it.
+// A copy-paste between pages is otherwise invisible.
+func TestHelpTopicSynopsisNamesItsCommand(t *testing.T) {
+	for _, cmd := range Commands {
+		page, ok := helpTopicFor(cmd)
+		if !ok {
+			continue // reported by TestEveryCommandHasAHelpTopic
+		}
+		canonical := cmd
+		if c, ok := suggestable[cmd]; ok {
+			canonical = c
+		}
+		first := strings.SplitN(page, "\n", 2)[0]
+		if !strings.Contains(first, "every "+canonical) {
+			t.Errorf("the %q page opens with %q, which does not name the command", cmd, first)
+		}
+	}
+}
+
+// Every example inside a help page has to be a real invocation. A page that
+// documents a flag the parser rejects is worse than no page.
+func TestHelpTopicExamplesUseRealFlags(t *testing.T) {
+	bin := buildBinary(t)
+
+	for _, topic := range helpTopicNames() {
+		page, _ := helpTopicFor(topic)
+		for _, line := range strings.Split(page, "\n") {
+			line = strings.TrimSpace(line)
+			// Only the worked examples, not the flag table above them.
+			if !strings.HasPrefix(line, "every ") || strings.Contains(line, "|") {
+				continue
+			}
+			// Examples that would register a real task or need a live store
+			// are not runnable here; their flags are still checked by the
+			// surface table. Only --help-able forms are exercised.
+			if strings.Contains(line, " -- ") {
+				continue
+			}
+			t.Run(topic+"/"+line, func(t *testing.T) {
+				args := append(strings.Fields(line)[1:], "--help")
+				out, code := runWithHome(t, bin, args...)
+				if code != 0 {
+					t.Errorf("`%s` is documented but rejected (exit %d):\n%s", line, code, out)
+				}
+			})
+		}
+	}
 }

@@ -61,12 +61,23 @@ ordinary task: \fBevery run\fR beforehand does not use it up.
 Schedule a task. The command is a shell command line (quote args with spaces
 or metacharacters as at a prompt). Output goes to the log, not your terminal.
 .TP
-.B every list \fR[\fB\-\-json\fR]
-Show every task: schedule, last run, status (ok / FAIL / unscheduled / paused),
-next run. With \fB\-\-json\fR, emit one JSON object per task on stdout.
+.B every list \fR(alias: \fBls\fR) \fR[\fB\-\-failing\fR] [\fB\-\-json\fR]
+Show every task: schedule, last run, status (ok / FAIL / unscheduled /
+paused / running / missed / late / invalid), next run. A one-shot firing right
+now is \fBrunning\fR. One whose moment went
+by without it firing is \fBmissed\fR where the scheduler drops it (launchd)
+and \fBlate\fR where the scheduler still runs it (systemd, Task Scheduler). Times are relative (\fB2h ago\fR, \fBin 18h\fR); \fBevery
+inspect\fR and \fB\-\-json\fR carry the exact instant. With
+\fB\-\-failing\fR, show only tasks needing attention \(em failed,
+unscheduled, invalid or missed, but not paused and not merely never-run; it
+exits 0 whether or not any matched. With \fB\-\-json\fR, emit one JSON
+object per task on stdout.
 .TP
-.B every log \fIname\fR \fR[\fB\-n\fR \fIN\fR]
-Print the last \fIN\fR (default 40) lines of a task's run log.
+.B every log \fIname\fR \fR[\fB\-n\fR \fIN\fR] [\fB\-f\fR]
+Print the last \fIN\fR (default 40) lines of a task's run log. With
+\fB\-f\fR (or \fB\-\-follow\fR), keep printing what the task appends, the
+way \fBtail \-f\fR does: across a log rotation, waiting if the task has not
+run yet, until interrupted. Cannot be combined with \fB\-\-json\fR.
 .TP
 .B every run \fIname\fR
 Run a task now, in your terminal \(em to test it before trusting the schedule.
@@ -74,7 +85,7 @@ Run a task now, in your terminal \(em to test it before trusting the schedule.
 .B every pause \fIname\fR \fR/\fB resume \fIname\fR
 Stop / restart scheduling without deleting the task.
 .TP
-.B every rm \fIname\fR
+.B every rm \fIname\fR \fR(alias: \fBremove\fR)
 Remove a task and its agent (the log is kept).
 .TP
 .B every doctor
@@ -90,7 +101,7 @@ there is no window in which the task does not exist: the store lock is held
 across the whole operation and the previous unit is restored if the scheduler
 refuses. Run history and the creation time are preserved.
 .TP
-.B every inspect \fIname\fR
+.B every inspect \fIname\fR \fR(alias: \fBshow\fR)
 Everything about one task \(em schedule, command, directory, timeout, whether
 the scheduler actually has it, and when it runs next.
 .TP
@@ -111,7 +122,7 @@ standard error as an object with a stable
 code \(em
 .BR no_such_task ", " no_logs ", " bad_schedule ", " bad_duration ", "
 .BR bad_name ", " already_exists ", " unsupported_schedule ", "
-.BR corrupt_store ", " scheduler_failed .
+.BR corrupt_store ", " scheduler_failed ", " missed .
 Exit statuses are unchanged.
 .TP
 .B every log \fIname\fR --json [--with-output]
@@ -136,7 +147,27 @@ Don't post a desktop notification when this task fails.
 Kill a run (and its process group) that overruns, e.g.\& \fB\-\-timeout 30m\fR.
 .TP
 .BI \-n " N"
-For \fBlog\fR: number of lines to show.
+For \fBlog\fR: number of lines to show. Must be a positive integer; a bad
+value is a usage error, not a silent fallback to the default.
+.TP
+.BI \-\-color " WHEN"
+\fBauto\fR (default), \fBalways\fR or \fBnever\fR. Overrides the terminal
+guess, so \fBevery list \-\-color=always | less \-R\fR keeps its color.
+.TP
+.B \-h, \-\-help
+Print help and exit, from any subcommand.
+.TP
+.B \-V, \-\-version
+Print the version and exit.
+.PP
+Unknown flags and unexpected arguments are a usage error (exit 64), never
+ignored: a typo'd \fB\-\-json\fR fails loudly instead of quietly printing the
+wrong format.
+.TP
+.B every help \fIcommand\fR
+One command's page, with its flags and worked examples \(em also reachable as
+\fBevery \fIcommand\fB \-\-help\fR. \fBevery help schedules\fR lists
+every schedule form. \fBevery help\fR alone is the index.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -174,8 +205,15 @@ Native Windows data defaults to \fB%LOCALAPPDATA%\\every\fR.
 .B EVERY_SHELL
 Select the Windows shell executable (defaults to \fB%COMSPEC%\fR / cmd.exe).
 .TP
+.B EVERY_POWERSHELL
+Path to the PowerShell used for \fB\-Command\fR tasks on Windows.
+.TP
 .B NO_COLOR
-Disable ANSI color (see https://no-color.org).
+Disable ANSI color (see https://no-color.org). Takes precedence over
+\fBCLICOLOR_FORCE\fR; both are overridden by \fB\-\-color\fR.
+.TP
+.B CLICOLOR_FORCE
+Keep color when standard output is not a terminal.
 .SH FILES
 .TP
 .B ~/.local/share/every/tasks.json

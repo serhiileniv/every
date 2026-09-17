@@ -312,3 +312,119 @@ func TestOsaEscape(t *testing.T) {
 		}
 	}
 }
+
+// A command that leaves something running behind it must not hold the capture
+// open. `server &` exits in milliseconds; the grandchild keeps the write end of
+// the pipe, and reading to EOF would block for as long as it lives -- during
+// which the scheduler will not start a second copy, so the task is dead while
+// `list` still reports ok.
+func TestCaptureReturnsWhenGrandchildHoldsPipe(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell differs on windows")
+	}
+	r, _ := testRunner(t)
+
+	start := time.Now()
+	res, err := r.capture("sleep 30 & echo started", t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	elapsed := time.Since(start)
+
+	if elapsed > 5*time.Second {
+		t.Fatalf("capture took %s — it waited on the grandchild", elapsed)
+	}
+	out := string(res.Output)
+	if !strings.Contains(out, "started") {
+		t.Errorf("output = %q, want the command's own output kept", out)
+	}
+	if !strings.Contains(out, "still holds the output pipe") {
+		t.Errorf("output = %q, want the detached-pipe note", out)
+	}
+	if res.ExitCode != 0 {
+		t.Errorf("exit = %d, want the command's own 0", res.ExitCode)
+	}
+}
+
+// The ordinary case must not pay for the one above: a command that exits
+// cleanly gets no note, and nothing waits out the grace period.
+func TestCaptureCleanExitHasNoDetachNote(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell differs on windows")
+	}
+	r, _ := testRunner(t)
+
+	start := time.Now()
+	res, err := r.capture("echo done", t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := string(res.Output); got != "done\n" {
+		t.Errorf("output = %q, want %q", got, "done\n")
+	}
+	if elapsed := time.Since(start); elapsed > detachGrace {
+		t.Errorf("took %s — a clean exit must not wait out the grace period", elapsed)
+	}
+}
+
+// A timeout still wins over the detach path: the group is killed, so the
+// grandchild dies with it and the log says the run was killed, not detached.
+func TestCaptureTimeoutBeatsDetachedGrandchild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell differs on windows")
+	}
+	r, _ := testRunner(t)
+
+	res, err := r.capture("sleep 30 & sleep 30", t.TempDir(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ExitCode != 124 {
+		t.Errorf("exit = %d, want 124", res.ExitCode)
+	}
+	out := string(res.Output)
+	if !strings.Contains(out, "killed after 1s timeout") {
+		t.Errorf("output = %q, want the timeout marker", out)
+	}
+	if strings.Contains(out, "still holds the output pipe") {
+		t.Errorf("output = %q, want no detach note on a timeout", out)
+	}
+}
+
+// A deleted working directory falls back to the home directory. That is fine;
+// doing it in silence is not -- `rm -rf build` means something very different
+// at $HOME, and the log is the only place a scheduled run can say so.
+func TestWorkdirNotesAMissingDirectory(t *testing.T) {
+	r, _ := testRunner(t)
+
+	gone := filepath.Join(t.TempDir(), "deleted-since")
+	dir, note := r.workdir(gone)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != home {
+		t.Errorf("dir = %q, want the home fallback %q", dir, home)
+	}
+	if !strings.Contains(note, gone) || !strings.Contains(note, "no longer exists") {
+		t.Errorf("note = %q, want it to name the missing directory", note)
+	}
+}
+
+// The directory that is still there stays silent: a note on every ordinary run
+// would train people to ignore the one that matters.
+func TestWorkdirIsSilentForALiveDirectory(t *testing.T) {
+	r, _ := testRunner(t)
+
+	dir := t.TempDir()
+	got, note := r.workdir(dir)
+
+	if got != dir {
+		t.Errorf("dir = %q, want %q", got, dir)
+	}
+	if note != "" {
+		t.Errorf("note = %q, want none", note)
+	}
+}

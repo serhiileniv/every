@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-Two schedule forms the DSL could not say: a day of the month, and a single
-moment.
+Two schedule forms the DSL could not say — a day of the month, and a single
+moment — plus a flag, stream and documentation audit of the CLI itself. One
+change breaks existing scripts; see Changed.
 
 ### Added
 
@@ -28,8 +29,134 @@ moment.
 - `every inspect --json` carries `at` for a once task; `every list` shows the
   instant in NEXT.
 
+- **`every log -f` / `--follow`** — stream a task's output while it runs, the
+  way `tail -f` does. Follows across a log rotation, and waits rather than
+  erroring when the task has not run yet (a plain `every log` still reports
+  `no_logs`). Ctrl-C exits 0: interrupting a follow is how following ends, not
+  a failure. Refused with `--json`, which has a fixed shape a stream is not.
+- **A suggestion on a typo** — `every lst` now offers `every list`. Only when
+  the token cannot parse as a schedule, so `every 15m` (a correct invocation
+  missing its `--`) is never answered with "did you mean list". Two commands
+  equally close means no suggestion: `rn` is one edit from both `rm` and `run`.
+- **`every list --failing`** — only the tasks needing attention: failed,
+  unscheduled, invalid, missed. Not paused, and not merely never-run. Exits 0
+  whether or not any matched.
+- **Per-command help.** `every help log` and `every log --help` print log's
+  page — synopsis, flags, worked examples — instead of the whole manual.
+  `every help` alone is still the index, aliases resolve (`every help ls`),
+  and `every help schedules` lists every schedule form. An unknown topic is a
+  usage error with a suggestion, not the full help printed as if it answered.
+- **`-h` / `--help` from any subcommand.** `every log --help` used to look up
+  a task literally named `--help`.
+- **`-V` / `-v`** as aliases of `version`.
+- **`--color auto|always|never`**, plus `CLICOLOR_FORCE`. Precedence, highest
+  first: `--color`, `NO_COLOR`, `CLICOLOR_FORCE`, `TERM=dumb`, isatty — an
+  opt-out beats an opt-in, per no-color.org. `every list --color=always |
+  less -R` keeps its color.
+- A `unknown_flag` error code, in the closed vocabulary `--json` reports.
+- **A drift test.** Every command the dispatcher accepts must appear in
+  `every help`, the man page, the README and all three completion scripts.
+  This is the check that would have caught the documentation entry below:
+  `set`, `inspect`, `exists` and `schema` shipped in 0.5.0 and reached none of
+  the README or the completions, and nothing failed.
+
+### Changed
+
+- **Unknown flags are a usage error (exit 64) instead of being ignored.**
+  `every list --jsn` used to print the human table and exit 0 — a script that
+  typo'd `--json` got the wrong format and no way to tell. Same for
+  `every inspect x --oops` and every other command. A script that was passing
+  a flag `every` never understood will now fail; that is the point, but it is
+  a break, so this is a minor bump rather than a patch.
+- **Unexpected positional arguments are a usage error too.** `every list
+  extra`, `every version extra` and `every rm backup extra` used to ignore
+  the surplus and exit 0 — the last of those reporting success for a name the
+  shell had split. Commands taking one name reject a second; commands taking
+  none reject any. `every help <anything>` is the single exception and still
+  prints help.
+- **`-n` is validated.** `every log x -n abc` used to silently use the default
+  of 40 and exit 0. A non-integer, zero or negative value is now exit 64.
+  `every log -n nosuch` reports the bad `-n` value rather than a bare usage
+  line.
+- **`every list` shows relative times** — `2h ago`, `in 18h` — for the two
+  columns that answer relative questions. The exact instant is unchanged in
+  `every inspect` and in every `--json` payload, which is where precision
+  belongs. Past 90 days out, the absolute date comes back: "in 217d" tells a
+  reader less than a date does.
+- **`every inspect` human output no longer prints RFC 3339.** It showed
+  `2026-09-14T10:00:00+03:00` where `list` showed `14 Sep 10:00`; it now shows
+  the absolute time and the relative one together. `--json` is untouched.
+- **The migration notice and the `unscheduled` hint moved to stderr.** They
+  were prose on stdout, suppressed under `--json` — which protected programs
+  and left `every list > tasks.txt` capturing them. The `--json` gate is gone;
+  stderr needs no gate.
+
 ### Fixed
 
+- **Running `every` from a dev build re-pointed every scheduled task at it.**
+  Start-up repair writes the launcher's path into every unit, and the launcher
+  is `argv[0]` — so `go run ./cmd/every list`, or `./every` from a checkout,
+  moved every task on the machine to a path that stops existing. Nothing
+  reported it: the unit stayed on disk, the scheduler kept it loaded, the last
+  run stayed exit 0, and only its timestamp stopped advancing. Units are now
+  re-pointed only at a launcher the shell can find — which is every install the
+  installer and Homebrew produce, and neither of those two — and the skip says
+  so. The probe runs only when the launcher actually moves, so a scheduled run,
+  which launchd hands a minimal PATH, is never affected.
+- **`every doctor` now checks that the binary the scheduler invokes still
+  exists**, reading the path from the same stamp the repair writes. An
+  uninstalled prefix or a deleted checkout is the one way every other check in
+  that report passes while nothing runs.
+- **A command that backgrounded something never finished.** The run captured
+  output by reading to EOF, and EOF means the last holder of the pipe — not the
+  command. `every 1h -- 'server &'` exited in milliseconds and the run blocked
+  for as long as the child lived, during which the scheduler would not start a
+  second copy: the task was dead and `list` still said `ok`. The capture now
+  ends when the command itself is reaped, a second later, and says so in the
+  log. The child is left running, which is the point of starting it.
+- **A one-shot the machine was powered off across could fire a year later.**
+  The launchd plist carries Month, Day, Hour and Minute — launchd has no Year
+  field — so a missed trigger still matched the same date twelve months on: the
+  task would run, retire itself, and leave nothing to say that a reminder
+  scheduled for last December had just gone off. A missed one-shot is now
+  unscheduled on macOS, which is the only platform that drops it. The store
+  entry stays, so `list` still reports it and `every rm` is still how it goes
+  away, and `doctor` explains the state rather than reporting the absent unit
+  as a fault.
+- **One-shots never ran on macOS.** The scheduled `every run` starts with the
+  start-up repair, which saw the moment had come and unloaded the job — and
+  launchd answers that by killing the job, which was that run. An `every list`
+  during a long one-shot killed it the same way, and so did re-registering a
+  stale unit after an upgrade. A run now marks its task running (a lock the
+  kernel drops when the process dies) before the repair, which skips running
+  tasks and gives a one-shot two minutes past its moment to be spawned. `list`
+  shows such a task as `running`, and `--failing` no longer includes
+  `running` or `late`. A launchd re-fire a year on is refused explicitly
+  (error code `missed`), where the self-kill used to prevent it by accident.
+  Covered end to end against the real scheduler in `test/e2e/unix.sh`.
+- **`every list` called a one-shot `missed` on platforms that still run it.**
+  systemd timers carry `Persistent=true` and Task Scheduler tasks
+  `StartWhenAvailable`, both deliberately, so a one-shot those two were off
+  across runs late rather than being lost. They now report `late`; only macOS
+  reports `missed`. Backends declare the difference through a `CatchUpper`
+  interface rather than `list` guessing from the platform.
+- **A passed one-shot showed a stale `ok` in STATUS** — from whatever its last
+  manual `every run` did — while only NEXT said `missed`. Both columns agree
+  now. **This adds `missed` and `late` to the `list --json` status
+  vocabulary**, which the man page documented as ok / FAIL / unscheduled /
+  paused; a consumer matching those exactly will not know the two new values.
+- **`every log` could not see past a rotation.** It read only the live log, so
+  the moment after the 5 MB rename it showed the single run since — on a task
+  that had run thousands of times, indistinguishable from history that had been
+  thrown away. Both the text form and `--with-output` now read across the
+  boundary, reaching into the rotated generation only for what the live log
+  cannot supply, and a task whose only remaining log *is* the rotated one no
+  longer reports "no logs yet".
+- **A task whose working directory had been deleted ran from `$HOME` in
+  silence.** The unreadable case had always been noted in the log; the missing
+  case was not, so `rm -rf build` aimed at a project ran in the home directory
+  with nothing saying it had moved. Both are noted now, and `doctor` checks the
+  directory as well.
 - **`every doctor` said "command resolvable in login shell" for commands the
   scheduler could not find.** It looked the command up on the PATH of the
   terminal doctor was typed into, which is the one PATH a scheduled run never
@@ -39,6 +166,19 @@ moment.
   now probes through the runner's login shell with a scheduler-like
   environment, and when the command exists in the terminal but not there, says
   so and names the file to move the line to.
+
+### Documentation
+
+- README: the eight undocumented commands, `--on-fail` (which appeared
+  nowhere), `--json` as a whole-CLI fact rather than a `list` footnote, a
+  sample `doctor` run, `EVERY_POWERSHELL` and `CLICOLOR_FORCE`. "Fine print"
+  split into semantics and collapsed platform detail. Nav reordered to match
+  the page.
+- README said scheduled runs use "`zsh -l` / `bash -l`". On macOS the shell is
+  always `/bin/zsh -l` whatever `$SHELL` says; Linux follows `$SHELL`.
+- Completions gained `set`, `inspect`, `show`, `exists`, `schema`, `ls`,
+  `remove`, the flags, and the schedule keywords, in all three shells.
+- Design records: `docs/specs/cli-polish.md` and `docs/specs/cli-polish-2.md`.
 
 ## 0.5.1 — 2026-09-04
 

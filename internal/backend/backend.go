@@ -70,6 +70,29 @@ func Retire(b Backend, name string) error {
 	return b.DeleteUnits(name)
 }
 
+// CatchUpper is implemented by a backend whose scheduler runs a calendar
+// trigger the machine slept or powered off through, instead of dropping it.
+//
+// The three schedulers genuinely differ, and a one-shot is where it shows:
+// systemd timers carry Persistent=true and Task Scheduler tasks
+// StartWhenAvailable, so both fire a missed one late; launchd drops anything
+// it was powered off across. Reporting such a task as "missed" everywhere
+// calls it lost on two platforms that intend to run it.
+//
+// An optional interface rather than a tenth method on Backend, following
+// Retirer above: a capability only some schedulers have belongs where only
+// they have to answer for it.
+type CatchUpper interface{ CatchesUpMissed() bool }
+
+// CatchesUpMissed reports whether this scheduler runs a missed calendar
+// trigger late. False for a backend that does not claim otherwise, which is
+// the safe default: it is the answer that keeps `every` from promising a run
+// it cannot deliver.
+func CatchesUpMissed(b Backend) bool {
+	c, ok := b.(CatchUpper)
+	return ok && c.CatchesUpMissed()
+}
+
 // UnsupportedScheduleError means the schedule is valid but this platform's
 // scheduler cannot express it -- Task Scheduler has no reliable sub-minute
 // repetition, for instance.

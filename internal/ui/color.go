@@ -28,12 +28,54 @@ const (
 	codeYellow = 33
 )
 
-// NewColor decides once, for one output stream.
-func NewColor(w io.Writer, env func(string) string, hasEnv func(string) bool) Color {
-	return Color{Enabled: colorAllowed(w, env, hasEnv)}
+// Mode is an explicit --color choice. ModeAuto means "decide from the
+// environment", which is what every invocation without the flag asks for.
+type Mode int
+
+const (
+	ModeAuto Mode = iota
+	ModeAlways
+	ModeNever
+)
+
+// ParseMode reads a --color value. Only the three conventional spellings are
+// accepted; anything else is the caller's usage error to report.
+func ParseMode(v string) (Mode, bool) {
+	switch v {
+	case "auto":
+		return ModeAuto, true
+	case "always", "force", "yes":
+		return ModeAlways, true
+	case "never", "none", "no":
+		return ModeNever, true
+	}
+	return ModeAuto, false
 }
 
-func colorAllowed(w io.Writer, env func(string) string, hasEnv func(string) bool) bool {
+// NewColor decides once, for one output stream.
+func NewColor(w io.Writer, env func(string) string, hasEnv func(string) bool) Color {
+	return NewColorMode(w, env, hasEnv, ModeAuto)
+}
+
+// NewColorMode is NewColor with an explicit --color choice.
+func NewColorMode(w io.Writer, env func(string) string, hasEnv func(string) bool, m Mode) Color {
+	return Color{Enabled: colorAllowed(w, env, hasEnv, m)}
+}
+
+// colorAllowed resolves the colour question, highest precedence first:
+//
+//	--color=always|never   the user said so on this invocation
+//	NO_COLOR               an opt-OUT beats an opt-in, per no-color.org
+//	CLICOLOR_FORCE         an opt-in for pipes: `every list | less -R`
+//	TERM=dumb              the terminal cannot render it
+//	isatty                 the default guess
+func colorAllowed(w io.Writer, env func(string) string, hasEnv func(string) bool, m Mode) bool {
+	switch m {
+	case ModeAlways:
+		return true
+	case ModeNever:
+		return false
+	}
 	// NO_COLOR disables by KEY PRESENCE, even when empty: NO_COLOR="" still
 	// disables. An unset TERM is not "dumb" and therefore still allows color.
 	if hasEnv("NO_COLOR") {
@@ -41,6 +83,9 @@ func colorAllowed(w io.Writer, env func(string) string, hasEnv func(string) bool
 	}
 	if env("TERM") == "dumb" {
 		return false
+	}
+	if v := env("CLICOLOR_FORCE"); v != "" && v != "0" {
+		return true
 	}
 	return isTerminal(w)
 }

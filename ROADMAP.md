@@ -4,7 +4,7 @@ Where `every` is going, and the honest gaps in it today. Order is rough
 priority, not a promise. Issues and PRs welcome — items marked **[good first
 issue]** are self-contained.
 
-## Known gaps in v0.3
+## Known gaps in v0.5
 
 These are real limitations, not hidden ones:
 
@@ -32,6 +32,10 @@ These are real limitations, not hidden ones:
   upgrades and months of uptime hasn't been observed yet.
 
 ## Next
+
+The 0.6 CLI audit is recorded in [docs/specs/cli-polish.md](docs/specs/cli-polish.md)
+and [cli-polish-2.md](docs/specs/cli-polish-2.md); what it deliberately left
+undone is below.
 
 - **Staleness watchdog** — warn when a task hasn't had a *successful* run in N
   days/intervals (a backup that silently stopped is the exact pain `every`

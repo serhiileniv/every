@@ -208,3 +208,79 @@ func rubyInspect(s string) string {
 	}
 	return b.String()
 }
+
+// rejectUnknownFlags fails on any flag-shaped token the command did not claim.
+//
+// Called after every known flag has been extracted, so what is left is by
+// definition unrecognised. Silently ignoring it is the failure this exists to
+// stop: `every list --jsn` used to print the human table and exit 0, which a
+// script reading stdout cannot tell from success.
+//
+// Tokens at or after `--` belong to the user's command, not to every, and are
+// never inspected. A bare "-" is a conventional stdin placeholder rather than a
+// flag, so it is left for the caller to reject or use.
+func rejectUnknownFlags(tokens []string) error {
+	for _, tok := range tokens {
+		if tok == "--" {
+			return nil
+		}
+		if len(tok) > 1 && strings.HasPrefix(tok, "-") {
+			return coded(CodeUnknownFlag, "", "unknown flag %s", rubyInspect(tok))
+		}
+	}
+	return nil
+}
+
+// rejectExtraArgs fails on anything left over once a command has taken the
+// arguments it understands.
+//
+// The positional half of rejectUnknownFlags, and it exists for the same reason:
+// `every list extra` and `every rm backup extra` used to ignore the surplus and
+// exit 0, so a caller that got its argument order wrong -- or passed a name
+// where none was read -- was told the command had succeeded.
+//
+// Tokens at or after `--` are the user's command and are never counted.
+func rejectExtraArgs(tokens []string) error {
+	for _, tok := range tokens {
+		if tok == "--" {
+			return nil
+		}
+	}
+	if len(tokens) > 0 {
+		return coded(CodeUsage, "", "unexpected argument %s", rubyInspect(tokens[0]))
+	}
+	return nil
+}
+
+// wantsHelp reports whether -h or --help appears before `--`.
+//
+// Checked before unknown-flag rejection so `every log --help` prints help
+// rather than "unknown flag", and before the name check so it does not get
+// parsed as a task named "--help", which is what it used to do.
+func wantsHelp(tokens []string) bool {
+	for _, tok := range tokens {
+		if tok == "--" {
+			return false
+		}
+		if tok == "-h" || tok == "--help" {
+			return true
+		}
+	}
+	return false
+}
+
+// parseCount reads a -n value.
+//
+// A bad value is an error, not a silent fallback to the default. `every log x
+// -n abc` used to print 40 lines and exit 0, which looks exactly like a
+// working command to anything reading the output.
+func parseCount(raw string) (int, error) {
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, coded(CodeUsage, "", "-n wants a positive number, got %s", rubyInspect(raw))
+	}
+	if n <= 0 {
+		return 0, coded(CodeUsage, "", "-n wants a positive number, got %s", rubyInspect(raw))
+	}
+	return n, nil
+}

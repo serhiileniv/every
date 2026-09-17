@@ -17,6 +17,7 @@ import (
 // maps to -- those were frozen in 0.4.0 and are asserted by the surface table.
 const (
 	CodeUsage               = "usage"
+	CodeUnknownFlag         = "unknown_flag"
 	CodeBadSchedule         = "bad_schedule"
 	CodeBadDuration         = "bad_duration"
 	CodeBadName             = "bad_name"
@@ -26,6 +27,7 @@ const (
 	CodeNoLogs              = "no_logs"
 	CodeCorruptStore        = "corrupt_store"
 	CodeSchedulerFailed     = "scheduler_failed"
+	CodeMissed              = "missed"
 	CodeInternal            = "internal"
 )
 

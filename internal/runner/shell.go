@@ -128,7 +128,12 @@ func (r *Runner) workdir(cwd string) (dir string, note string) {
 	}
 	info, err := os.Stat(cwd)
 	if err != nil || !info.IsDir() {
-		return home, ""
+		// A directory that has been deleted or replaced since the task was
+		// added. This used to fall back silently, which is the worse half of
+		// the same bug the note below exists for: `rm -rf build` or `git clean`
+		// aimed at a project would run in the home directory with nothing in
+		// the log saying it had moved.
+		return home, fmt.Sprintf("note: cwd %s no longer exists — ran from %s\n", cwd, home)
 	}
 	f, err := os.Open(cwd)
 	if err == nil {

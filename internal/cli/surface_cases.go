@@ -147,4 +147,102 @@ var SurfaceCases = [][]string{
 	// against that platform's real scheduler.
 	{"banana", "--", "true"},
 	{"15m", "--timeout", "0s", "--json", "--", "true"},
+
+	// 0.6.0: unknown flags are usage errors rather than silently ignored.
+	// The old answers for these are in the fixture's history -- `list --jsn`
+	// used to print the human table and exit 0, which is the bug.
+	{"list", "--jsn"},
+	{"list", "--verbose"},
+	{"ls", "--jsno"},
+	{"inspect", "nosuch", "--oops"},
+	{"exists", "nosuch", "--oops"},
+	{"rm", "--oops", "nosuch"},
+	{"pause", "nosuch", "--oops"},
+	{"resume", "nosuch", "--oops"},
+	{"run", "nosuch", "--oops"},
+	{"doctor", "--oops"},
+	{"schema", "--oops"},
+	{"version", "--oops"},
+	{"log", "nosuch", "--oops"},
+	{"15m", "--oopsie", "--", "true"},
+	{"set", "15m", "--name", "x", "--oopsie", "--", "true"},
+	{"list", "--jsn", "--json"},
+
+	// -n is validated rather than falling back to 40.
+	{"log", "nosuch", "-n", "abc"},
+	{"log", "nosuch", "-n", "0"},
+	{"log", "nosuch", "-n", "-1"},
+	{"log", "nosuch", "-n"},
+
+	// -h/--help from any subcommand, and the version aliases.
+	{"log", "--help"},
+	{"list", "-h"},
+	{"rm", "--help"},
+	{"doctor", "-h"},
+	{"-V"},
+	{"-v"},
+
+	// Stray positionals are rejected too, not just stray flags. These four
+	// were tolerated from 0.4 through 0.5 and are the widest break in 0.6.
+	{"doctor", "extra"},
+	{"inspect", "nosuch", "extra"},
+	{"exists", "nosuch", "extra"},
+	{"run", "nosuch", "extra"},
+	{"schema", "list", "extra"},
+	{"log", "nosuch", "extra"},
+	{"list", "extra", "--json"},
+	// ...except after `help`, which just helps.
+	{"help", "log"},
+
+	// 0.6.0 round 2: follow, suggestions, filtering.
+	{"log", "nosuch", "-f", "--json"},
+	{"log", "nosuch", "--follow", "--json"},
+	{"list", "--failing"},
+	{"list", "--failing", "--json"},
+	{"lst"},
+	{"lis"},
+	{"reusme"},
+	{"doctr"},
+	// Ties and schedules must NOT be corrected: "rn" is one edit from both
+	// "rm" and "run", and 15m is a correct invocation missing only its `--`.
+	{"rn"},
+	{"15m"},
+	{"2h"},
+
+	// Per-command help: `every help <cmd>` and `every <cmd> --help` are the
+	// same page, aliases resolve, and an unknown topic is a usage error rather
+	// than the whole manual printed as if it answered.
+	{"help", "list"},
+	{"help", "ls"},
+	{"help", "log"},
+	{"help", "run"},
+	{"help", "rm"},
+	{"help", "remove"},
+	{"help", "doctor"},
+	{"help", "inspect"},
+	{"help", "show"},
+	{"help", "exists"},
+	{"help", "set"},
+	{"help", "schema"},
+	{"help", "pause"},
+	{"help", "resume"},
+	{"help", "version"},
+	{"help", "help"},
+	{"help", "schedules"},
+	{"help", "lst"},
+	{"help", "frobnicate"},
+	{"help", "list", "extra"},
+	{"run", "--help"},
+	{"inspect", "--help"},
+	{"set", "--help"},
+	{"schema", "--help"},
+	{"15m", "--help"},
+
+	// --color is global, validated, and stripped before dispatch.
+	{"list", "--color=never"},
+	{"list", "--color", "never"},
+	{"list", "--color=always"},
+	{"list", "--color=bogus"},
+	{"list", "--color"},
+	{"version", "--color=never"},
 }

@@ -35,6 +35,9 @@ var schemaFor = map[string]any{
 
 func (c *CLI) schema(args []string) error {
 	args, _ = stripJSONFlag(args)
+	if err := rejectUnknownFlags(args); err != nil {
+		return err
+	}
 
 	if len(args) == 0 {
 		out := map[string]any{}
@@ -42,6 +45,10 @@ func (c *CLI) schema(args []string) error {
 			out[name] = describe(reflect.TypeOf(v))
 		}
 		return emitJSON(c.Stdout, out)
+	}
+
+	if err := rejectExtraArgs(args[1:]); err != nil {
+		return err
 	}
 
 	name := args[0]

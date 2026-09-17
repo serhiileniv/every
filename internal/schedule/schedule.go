@@ -60,6 +60,12 @@ const MinInterval = 10
 // instant that has either passed or is further away than asked.
 const MinOnceDelay = 60
 
+// OnceGrace is how long after its moment a one-shot counts as still firing
+// rather than overdue. launchd starts a calendar job some way into its minute,
+// so a task whose moment has just arrived may not have been spawned yet;
+// calling it missed then -- or unloading it -- would lose it.
+const OnceGrace = 2 * time.Minute
+
 // maxMonthWalk bounds the search for the next day-of-month occurrence. The
 // 29th recurs at least every fourth year; 96 months covers a century skip.
 const maxMonthWalk = 96
@@ -488,6 +494,12 @@ func (s *Schedule) HumanInterval() string {
 	default:
 		return s.Interval.String() + "s"
 	}
+}
+
+// OnceOverdue reports whether a once schedule's moment, plus OnceGrace, has
+// gone by. False for every other kind.
+func (s *Schedule) OnceOverdue(now time.Time) bool {
+	return s.Kind == Once && !now.Before(s.At.Add(OnceGrace))
 }
 
 // NextRun is the earliest next calendar occurrence, or the zero Time for an

@@ -51,7 +51,7 @@ func (c *CLI) logJSON(name string, n int, withOutput bool) error {
 	// the two forms of one command must agree about whether it failed --
 	// otherwise a program and a person reading the same exit code reach
 	// opposite conclusions, and the exit code is the part every caller sees.
-	if _, statErr := os.Stat(c.Dirs.Logs + "/" + name + ".log"); statErr != nil {
+	if !c.logExists(name) {
 		return c.noLogsError(name)
 	}
 
@@ -90,15 +90,10 @@ func (c *CLI) logJSON(name string, n int, withOutput bool) error {
 // own log format back apart, and coping with arbitrary bytes in it -- is off
 // the path a caller takes by default.
 func (c *CLI) attachOutput(name string, payload *logPayload) error {
-	raw, err := os.ReadFile(c.Dirs.Logs + "/" + name + ".log")
+	blocks, err := c.logBlocks(name, len(payload.Entries))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // ran but wrote nothing, or the log was rotated away
-		}
 		return err
 	}
-
-	blocks := splitLogBlocks(string(raw))
 	// Pair from the end: the ledger holds the last N runs and the log may hold
 	// more or fewer, so aligning the newest of each is the only correspondence
 	// that survives rotation and trimming.
@@ -112,29 +107,4 @@ func (c *CLI) attachOutput(name string, payload *logPayload) error {
 		e.OutputB64 = base64.StdEncoding.EncodeToString([]byte(body))
 	}
 	return nil
-}
-
-// splitLogBlocks returns each run's output, without its header line.
-func splitLogBlocks(s string) []string {
-	var blocks []string
-	var cur strings.Builder
-	started := false
-
-	for _, line := range strings.SplitAfter(s, "\n") {
-		if strings.HasPrefix(line, "=== ") && strings.Contains(line, " exit=") {
-			if started {
-				blocks = append(blocks, cur.String())
-				cur.Reset()
-			}
-			started = true
-			continue
-		}
-		if started {
-			cur.WriteString(line)
-		}
-	}
-	if started {
-		blocks = append(blocks, cur.String())
-	}
-	return blocks
 }

@@ -2,7 +2,7 @@
   {
     "argv": [],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list [--failing]    what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs (-f to follow live)\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\n  every help \u003ccommand\u003e      how to use one command, with examples\n                            (also: every \u003ccommand\u003e --help)\n  every help schedules      every schedule form there is\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\nanywhere:\n  -h, --help        this text; after a command, that command's page\n  -V, --version     version (also: every version)\n  --color WHEN      auto, always or never — overrides the tty guess\n  Unknown flags and unexpected arguments are an error, never ignored, so\n  a typo'd --json fails loudly instead of quietly printing the wrong\n  thing.\n\naliases:  ls = list, show = inspect, remove = rm\n\nexit codes (sysexits.h, so scripts can branch on $?):\n  0   success\n  64  usage error (bad arguments, unknown flag)\n  66  no such task, or no logs yet\n  1   anything else\n  every run exits with the command's own code, 124 on --timeout,\n  or 128+signum if a signal killed it.\n\nenvironment:\n  EVERY_HOME        override the data dir entirely\n  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)\n  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)\n  EVERY_SHELL       Windows only: the shell tasks run through\n  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -10,7 +10,7 @@
       "help"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list [--failing]    what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs (-f to follow live)\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\n  every help \u003ccommand\u003e      how to use one command, with examples\n                            (also: every \u003ccommand\u003e --help)\n  every help schedules      every schedule form there is\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\nanywhere:\n  -h, --help        this text; after a command, that command's page\n  -V, --version     version (also: every version)\n  --color WHEN      auto, always or never — overrides the tty guess\n  Unknown flags and unexpected arguments are an error, never ignored, so\n  a typo'd --json fails loudly instead of quietly printing the wrong\n  thing.\n\naliases:  ls = list, show = inspect, remove = rm\n\nexit codes (sysexits.h, so scripts can branch on $?):\n  0   success\n  64  usage error (bad arguments, unknown flag)\n  66  no such task, or no logs yet\n  1   anything else\n  every run exits with the command's own code, 124 on --timeout,\n  or 128+signum if a signal killed it.\n\nenvironment:\n  EVERY_HOME        override the data dir entirely\n  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)\n  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)\n  EVERY_SHELL       Windows only: the shell tasks run through\n  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -18,7 +18,7 @@
       "-h"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list [--failing]    what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs (-f to follow live)\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\n  every help \u003ccommand\u003e      how to use one command, with examples\n                            (also: every \u003ccommand\u003e --help)\n  every help schedules      every schedule form there is\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\nanywhere:\n  -h, --help        this text; after a command, that command's page\n  -V, --version     version (also: every version)\n  --color WHEN      auto, always or never — overrides the tty guess\n  Unknown flags and unexpected arguments are an error, never ignored, so\n  a typo'd --json fails loudly instead of quietly printing the wrong\n  thing.\n\naliases:  ls = list, show = inspect, remove = rm\n\nexit codes (sysexits.h, so scripts can branch on $?):\n  0   success\n  64  usage error (bad arguments, unknown flag)\n  66  no such task, or no logs yet\n  1   anything else\n  every run exits with the command's own code, 124 on --timeout,\n  or 128+signum if a signal killed it.\n\nenvironment:\n  EVERY_HOME        override the data dir entirely\n  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)\n  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)\n  EVERY_SHELL       Windows only: the shell tasks run through\n  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -26,7 +26,7 @@
       "--help"
     ],
     "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list [--failing]    what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs (-f to follow live)\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\n  every help \u003ccommand\u003e      how to use one command, with examples\n                            (also: every \u003ccommand\u003e --help)\n  every help schedules      every schedule form there is\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\nanywhere:\n  -h, --help        this text; after a command, that command's page\n  -V, --version     version (also: every version)\n  --color WHEN      auto, always or never — overrides the tty guess\n  Unknown flags and unexpected arguments are an error, never ignored, so\n  a typo'd --json fails loudly instead of quietly printing the wrong\n  thing.\n\naliases:  ls = list, show = inspect, remove = rm\n\nexit codes (sysexits.h, so scripts can branch on $?):\n  0   success\n  64  usage error (bad arguments, unknown flag)\n  66  no such task, or no logs yet\n  1   anything else\n  every run exits with the command's own code, 124 on --timeout,\n  or 128+signum if a signal killed it.\n\nenvironment:\n  EVERY_HOME        override the data dir entirely\n  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)\n  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)\n  EVERY_SHELL       Windows only: the shell tasks run through\n  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
     "stderr": ""
   },
   {
@@ -167,9 +167,9 @@
       "0",
       "nosuch"
     ],
-    "exit": 66,
+    "exit": 64,
     "stdout": "",
-    "stderr": "every: no task \"nosuch\"\n"
+    "stderr": "every: -n wants a positive number, got \"0\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -178,9 +178,9 @@
       "notanumber",
       "nosuch"
     ],
-    "exit": 66,
+    "exit": 64,
     "stdout": "",
-    "stderr": "every: no task \"nosuch\"\n"
+    "stderr": "every: -n wants a positive number, got \"notanumber\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -222,9 +222,9 @@
       "--json",
       "extra"
     ],
-    "exit": 0,
-    "stdout": "[]\n",
-    "stderr": ""
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"usage\",\"message\":\"unexpected argument \\\"extra\\\"\"}\n"
   },
   {
     "argv": [
@@ -820,18 +820,18 @@
       "--json",
       "extra"
     ],
-    "exit": 0,
-    "stdout": "[]\n",
-    "stderr": ""
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"usage\",\"message\":\"unexpected argument \\\"extra\\\"\"}\n"
   },
   {
     "argv": [
       "list",
       "extra"
     ],
-    "exit": 0,
-    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
-    "stderr": ""
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -870,9 +870,9 @@
       "-1",
       "nosuch"
     ],
-    "exit": 66,
+    "exit": 64,
     "stdout": "",
-    "stderr": "every: no task \"nosuch\"\n"
+    "stderr": "every: -n wants a positive number, got \"-1\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -893,25 +893,25 @@
     ],
     "exit": 64,
     "stdout": "",
-    "stderr": "usage: every log \u003cname\u003e [-n N]\n"
+    "stderr": "every: -n wants a positive number, got \"nosuch\"\nsee: every help\n"
   },
   {
     "argv": [
       "version",
       "extra"
     ],
-    "exit": 0,
-    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
-    "stderr": ""
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
   },
   {
     "argv": [
       "help",
       "extra"
     ],
-    "exit": 0,
-    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list                what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
-    "stderr": ""
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: no help for \"extra\"\n  topics:        doctor, exists, help, inspect, list, log, pause, resume, rm, run, schedules, schema, set, version\nsee: every help\n"
   },
   {
     "argv": [
@@ -919,9 +919,9 @@
       "nosuch",
       "extra"
     ],
-    "exit": 66,
+    "exit": 64,
     "stdout": "",
-    "stderr": "every: no task \"nosuch\"\n"
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -929,9 +929,9 @@
       "nosuch",
       "extra"
     ],
-    "exit": 66,
+    "exit": 64,
     "stdout": "",
-    "stderr": "every: no task \"nosuch\"\n"
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
   },
   {
     "argv": [
@@ -1199,5 +1199,715 @@
     "exit": 64,
     "stdout": "",
     "stderr": "{\"error\":\"bad_duration\",\"message\":\"--timeout must be greater than 0\"}\n"
+  },
+  {
+    "argv": [
+      "list",
+      "--jsn"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--jsn\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "list",
+      "--verbose"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--verbose\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "ls",
+      "--jsno"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--jsno\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "inspect",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "exists",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "rm",
+      "--oops",
+      "nosuch"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "pause",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "resume",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "run",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "doctor",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "schema",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "version",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "--oops"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oops\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m",
+      "--oopsie",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oopsie\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "set",
+      "15m",
+      "--name",
+      "x",
+      "--oopsie",
+      "--",
+      "true"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unknown flag \"--oopsie\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "list",
+      "--jsn",
+      "--json"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"unknown_flag\",\"message\":\"unknown flag \\\"--jsn\\\"\"}\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-n",
+      "abc"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: -n wants a positive number, got \"abc\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-n",
+      "0"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: -n wants a positive number, got \"0\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-n",
+      "-1"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: -n wants a positive number, got \"-1\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-n"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: -n needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every log \u003cname\u003e [-n N] [-f] [--json] [--with-output]\n\n  What a task printed. Reads across a log rotation, so the moment just after\n  one does not look like history that was lost.\n\n  -n N            how many lines (default 40)\n  -f, --follow    keep printing as the task writes, like tail -f. Waits if\n                  the task has not run yet. Ctrl-C ends it, exit 0.\n                  Cannot be combined with --json.\n  --json          run history from the ledger\n  --with-output   include captured output in --json (omitted by default,\n                  which keeps the response bounded)\n\n  every log backup\n  every log backup -n 200\n  every log backup -f\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "every list [--failing] [--json]          (alias: ls)\n\n  What is scheduled, when it last ran, whether it worked, and when it runs\n  next. Times are relative -- 2h ago, in 18h. The exact instant is in\n  every inspect and in --json.\n\n  --failing   only the tasks needing attention: failed, unscheduled, invalid\n              or missed. Not paused, and not merely never-run. Exits 0\n              whether or not any matched.\n  --json      one object per task on stdout\n\n  every list\n  every list --failing\n  every list --json | jq -r '.[] | select(.status | test(\"FAIL\")) | .name'\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "rm",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every rm \u003cname\u003e [--json]                 (alias: remove)\n\n  Remove a task and its scheduler unit. Logs and run history are KEPT, so\n  every log \u003cname\u003e still answers afterwards.\n\n  every rm backup\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "doctor",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "every doctor [--json]\n\n  Why isn't it running? Checks the whole chain -- scheduler reachable, data\n  dir writable, unit present, task loaded, command resolvable in the login\n  shell -- and names the command that fixes anything broken.\n\n  The command check is the one that catches the classic trap: a PATH line in\n  ~/.zshrc works when you type the command and fails under the scheduler,\n  which reads ~/.zprofile.\n\n  every doctor\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "-V"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "-v"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "doctor",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "inspect",
+      "nosuch",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "exists",
+      "nosuch",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "run",
+      "nosuch",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "schema",
+      "list",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "list",
+      "extra",
+      "--json"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"usage\",\"message\":\"unexpected argument \\\"extra\\\"\"}\n"
+  },
+  {
+    "argv": [
+      "help",
+      "log"
+    ],
+    "exit": 0,
+    "stdout": "every log \u003cname\u003e [-n N] [-f] [--json] [--with-output]\n\n  What a task printed. Reads across a log rotation, so the moment just after\n  one does not look like history that was lost.\n\n  -n N            how many lines (default 40)\n  -f, --follow    keep printing as the task writes, like tail -f. Waits if\n                  the task has not run yet. Ctrl-C ends it, exit 0.\n                  Cannot be combined with --json.\n  --json          run history from the ledger\n  --with-output   include captured output in --json (omitted by default,\n                  which keeps the response bounded)\n\n  every log backup\n  every log backup -n 200\n  every log backup -f\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "-f",
+      "--json"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"usage\",\"message\":\"--follow cannot be combined with --json\"}\n"
+  },
+  {
+    "argv": [
+      "log",
+      "nosuch",
+      "--follow",
+      "--json"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "{\"error\":\"usage\",\"message\":\"--follow cannot be combined with --json\"}\n"
+  },
+  {
+    "argv": [
+      "list",
+      "--failing"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--failing",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "lst"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"lst\" isn't a command, and there's no `--` before a task.\n  did you mean:  every list\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "lis"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"lis\" isn't a command, and there's no `--` before a task.\n  did you mean:  every list\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "reusme"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"reusme\" isn't a command, and there's no `--` before a task.\n  did you mean:  every resume\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "doctr"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"doctr\" isn't a command, and there's no `--` before a task.\n  did you mean:  every doctor\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "rn"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"rn\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "15m"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"15m\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "2h"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: \"2h\" isn't a command, and there's no `--` before a task.\n  to schedule:  every \u003cwhen\u003e -- \u003ccommand\u003e   (e.g. every day 9am -- brew update)\n  commands:     list, log, run, pause, resume, rm, doctor, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "help",
+      "list"
+    ],
+    "exit": 0,
+    "stdout": "every list [--failing] [--json]          (alias: ls)\n\n  What is scheduled, when it last ran, whether it worked, and when it runs\n  next. Times are relative -- 2h ago, in 18h. The exact instant is in\n  every inspect and in --json.\n\n  --failing   only the tasks needing attention: failed, unscheduled, invalid\n              or missed. Not paused, and not merely never-run. Exits 0\n              whether or not any matched.\n  --json      one object per task on stdout\n\n  every list\n  every list --failing\n  every list --json | jq -r '.[] | select(.status | test(\"FAIL\")) | .name'\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "ls"
+    ],
+    "exit": 0,
+    "stdout": "every list [--failing] [--json]          (alias: ls)\n\n  What is scheduled, when it last ran, whether it worked, and when it runs\n  next. Times are relative -- 2h ago, in 18h. The exact instant is in\n  every inspect and in --json.\n\n  --failing   only the tasks needing attention: failed, unscheduled, invalid\n              or missed. Not paused, and not merely never-run. Exits 0\n              whether or not any matched.\n  --json      one object per task on stdout\n\n  every list\n  every list --failing\n  every list --json | jq -r '.[] | select(.status | test(\"FAIL\")) | .name'\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "log"
+    ],
+    "exit": 0,
+    "stdout": "every log \u003cname\u003e [-n N] [-f] [--json] [--with-output]\n\n  What a task printed. Reads across a log rotation, so the moment just after\n  one does not look like history that was lost.\n\n  -n N            how many lines (default 40)\n  -f, --follow    keep printing as the task writes, like tail -f. Waits if\n                  the task has not run yet. Ctrl-C ends it, exit 0.\n                  Cannot be combined with --json.\n  --json          run history from the ledger\n  --with-output   include captured output in --json (omitted by default,\n                  which keeps the response bounded)\n\n  every log backup\n  every log backup -n 200\n  every log backup -f\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "run"
+    ],
+    "exit": 0,
+    "stdout": "every run \u003cname\u003e [--dry-run] [--json]\n\n  Run a task now, in your terminal, to see it work before trusting the\n  schedule. The run is logged like any other. Exits with the command's own\n  exit code.\n\n  --dry-run   print the shell, directory, timeout and exact command that\n              would be used, and execute nothing\n\n  every run backup\n  every run backup --dry-run\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "rm"
+    ],
+    "exit": 0,
+    "stdout": "every rm \u003cname\u003e [--json]                 (alias: remove)\n\n  Remove a task and its scheduler unit. Logs and run history are KEPT, so\n  every log \u003cname\u003e still answers afterwards.\n\n  every rm backup\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "remove"
+    ],
+    "exit": 0,
+    "stdout": "every rm \u003cname\u003e [--json]                 (alias: remove)\n\n  Remove a task and its scheduler unit. Logs and run history are KEPT, so\n  every log \u003cname\u003e still answers afterwards.\n\n  every rm backup\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "doctor"
+    ],
+    "exit": 0,
+    "stdout": "every doctor [--json]\n\n  Why isn't it running? Checks the whole chain -- scheduler reachable, data\n  dir writable, unit present, task loaded, command resolvable in the login\n  shell -- and names the command that fixes anything broken.\n\n  The command check is the one that catches the classic trap: a PATH line in\n  ~/.zshrc works when you type the command and fails under the scheduler,\n  which reads ~/.zprofile.\n\n  every doctor\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "inspect"
+    ],
+    "exit": 0,
+    "stdout": "every inspect \u003cname\u003e [--json]            (alias: show)\n\n  Everything about one task: schedule, command, directory, timeout, on-fail,\n  whether the scheduler actually has it, and when it runs next. This is where\n  exact times live -- every list rounds them off for scanning.\n\n  every inspect backup\n  every inspect backup --json | jq -r .next\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "show"
+    ],
+    "exit": 0,
+    "stdout": "every inspect \u003cname\u003e [--json]            (alias: show)\n\n  Everything about one task: schedule, command, directory, timeout, on-fail,\n  whether the scheduler actually has it, and when it runs next. This is where\n  exact times live -- every list rounds them off for scanning.\n\n  every inspect backup\n  every inspect backup --json | jq -r .next\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "exists"
+    ],
+    "exit": 0,
+    "stdout": "every exists \u003cname\u003e [--json]\n\n  Exit 0 if the task exists, 66 if it does not. Prints nothing. For scripts\n  that need an idempotent add.\n\n  every exists backup || every day 3am --name backup -- ~/bin/backup.sh\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "set"
+    ],
+    "exit": 0,
+    "stdout": "every set \u003cwhen\u003e --name \u003cname\u003e [flags] -- \u003ccommand\u003e\n\n  Add a task, or update one that already exists, in one step. Unlike rm\n  followed by a re-add there is no window in which the task does not exist:\n  the store lock is held across the whole operation and the previous unit is\n  restored if the scheduler refuses. Run history and creation time survive.\n\n  --name is required -- it is what identifies the task to update.\n  Takes the same flags as adding: --quiet, --timeout, --on-fail.\n\n  every set day 9am --name backup -- ~/bin/backup.sh\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "schema"
+    ],
+    "exit": 0,
+    "stdout": "every schema [command] [--json]\n\n  The JSON shape a command emits, generated from the types themselves rather\n  than written by hand, so it cannot go stale.\n\n  With no argument, every shape at once. With one, just that command's.\n\n  every schema\n  every schema list\n  every schema error\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "pause"
+    ],
+    "exit": 0,
+    "stdout": "every pause \u003cname\u003e [--json]\n\n  Stop scheduling a task without deleting it. The task, its history and its\n  logs stay; only the scheduler stops firing it. every resume undoes it.\n\n  every pause backup\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "resume"
+    ],
+    "exit": 0,
+    "stdout": "every resume \u003cname\u003e [--json]\n\n  Start scheduling a paused task again. Also the fix for a task showing\n  \"unscheduled\" in every list -- one the scheduler has lost.\n\n  every resume backup\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "version"
+    ],
+    "exit": 0,
+    "stdout": "every version [--json]                   (also: -V)\n\n  Version, tagline and homepage.\n\n  every version\n  every version --json | jq -r .version\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "help"
+    ],
+    "exit": 0,
+    "stdout": "every help [command]                     (also: -h)\n\n  With no argument, everything every can do. With a command, that command's\n  page. Also reachable as a flag: every log --help.\n\n  every help\n  every help log\n  every log --help\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "schedules"
+    ],
+    "exit": 0,
+    "stdout": "Schedule forms\n\n  90s  15m  2h                fixed interval\n  hourly                      every hour\n  day 9am     day 17:30       daily at that time\n  day 9am,6pm                 daily, several times\n  weekdays 9:30               Mon-Fri\n  weekends 11am               Sat+Sun\n  monday 10:00                weekly\n  monday,thursday 6pm         weekly, several days\n  monthly 1st 9am             a day of the month (29-31 skip short months)\n  monthly 1,15 18:00          several days of the month\n  once 15:30                  one time only: today, or tomorrow if passed\n  once tomorrow 9am           one time only: a day\n  once friday 5pm             one time only: a weekday\n  once 2026-12-24 18:00       one time only: a date\n  once 45m                    one time only: a delay from now (\u003e= 1 minute)\n\n  A once task fires and then removes itself, keeping its logs and history.\n\n  every 15m -- ~/bin/sync.sh\n  every weekdays 9:30 -- ~/bin/standup.sh\n  every once tomorrow 9am -- ~/bin/remind.sh\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "help",
+      "lst"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: no help for \"lst\"\n  did you mean:  every help list\n  topics:        doctor, exists, help, inspect, list, log, pause, resume, rm, run, schedules, schema, set, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "help",
+      "frobnicate"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: no help for \"frobnicate\"\n  topics:        doctor, exists, help, inspect, list, log, pause, resume, rm, run, schedules, schema, set, version\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "help",
+      "list",
+      "extra"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: unexpected argument \"extra\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "run",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every run \u003cname\u003e [--dry-run] [--json]\n\n  Run a task now, in your terminal, to see it work before trusting the\n  schedule. The run is logged like any other. Exits with the command's own\n  exit code.\n\n  --dry-run   print the shell, directory, timeout and exact command that\n              would be used, and execute nothing\n\n  every run backup\n  every run backup --dry-run\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "inspect",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every inspect \u003cname\u003e [--json]            (alias: show)\n\n  Everything about one task: schedule, command, directory, timeout, on-fail,\n  whether the scheduler actually has it, and when it runs next. This is where\n  exact times live -- every list rounds them off for scanning.\n\n  every inspect backup\n  every inspect backup --json | jq -r .next\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "set",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every set \u003cwhen\u003e --name \u003cname\u003e [flags] -- \u003ccommand\u003e\n\n  Add a task, or update one that already exists, in one step. Unlike rm\n  followed by a re-add there is no window in which the task does not exist:\n  the store lock is held across the whole operation and the previous unit is\n  restored if the scheduler refuses. Run history and creation time survive.\n\n  --name is required -- it is what identifies the task to update.\n  Takes the same flags as adding: --quiet, --timeout, --on-fail.\n\n  every set day 9am --name backup -- ~/bin/backup.sh\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "schema",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every schema [command] [--json]\n\n  The JSON shape a command emits, generated from the types themselves rather\n  than written by hand, so it cannot go stale.\n\n  With no argument, every shape at once. With one, just that command's.\n\n  every schema\n  every schema list\n  every schema error\n\nall commands:  every help\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "15m",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION — humane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n\nschedule anything on your computer, humanely\n\nadd a task:\n  every 15m -- ~/bin/sync-notes.sh\n  every hourly -- brew update\n  every day 9am,6pm -- ruby ~/bin/report.rb\n  every weekdays 9:30 -- ~/bin/standup-prep.sh\n  every monday,thursday 10:00 --name reports -- ~/bin/weekly.sh\n  every monthly 1st 9am -- ~/bin/invoice.sh\n  every once tomorrow 9am -- ~/bin/remind.sh     (runs once, then removes itself)\n\n  Flags: --name NAME, --quiet (no failure notification),\n         --timeout 30m (kill a run that overruns, so it can't block\n         the next one), --on-fail '\u003ccommand\u003e' (run something when\n         it fails).\n  The command runs through your platform shell (PATH works), in the\n  directory where you added it. Missed calendar runs fire when the\n  scheduler becomes available. Failed runs notify when supported unless\n  --quiet.\n\nmanage:\n  every list [--failing]    what's scheduled, last/next run, ok/FAIL\n  every log \u003cname\u003e [-n N]   output of recent runs (-f to follow live)\n  every run \u003cname\u003e          run it right now (prints output, logs too)\n  every pause \u003cname\u003e        stop scheduling (keeps the task)\n  every resume \u003cname\u003e       start again\n  every rm \u003cname\u003e           remove task (logs are kept)\n  every doctor              explain why something isn't running\n\n  every help \u003ccommand\u003e      how to use one command, with examples\n                            (also: every \u003ccommand\u003e --help)\n  every help schedules      every schedule form there is\n\nfor scripts and agents:\n  every set \u003cwhen\u003e --name \u003cn\u003e -- \u003ccmd\u003e   add, or update in place\n  every inspect \u003cname\u003e                   everything about one task\n  every exists \u003cname\u003e                    exit 0 if it exists, 66 if not\n  every run \u003cname\u003e --dry-run             what would run, without running\n  every schema [command]                 the JSON shape a command emits\n\n  --json works on every command above, and on failures: the error goes to\n  stderr as {\"error\":\"no_such_task\",...} with the same exit code as always.\n  every log --json omits captured output unless you add --with-output.\n\nanywhere:\n  -h, --help        this text; after a command, that command's page\n  -V, --version     version (also: every version)\n  --color WHEN      auto, always or never — overrides the tty guess\n  Unknown flags and unexpected arguments are an error, never ignored, so\n  a typo'd --json fails loudly instead of quietly printing the wrong\n  thing.\n\naliases:  ls = list, show = inspect, remove = rm\n\nexit codes (sysexits.h, so scripts can branch on $?):\n  0   success\n  64  usage error (bad arguments, unknown flag)\n  66  no such task, or no logs yet\n  1   anything else\n  every run exits with the command's own code, 124 on --timeout,\n  or 128+signum if a signal killed it.\n\nenvironment:\n  EVERY_HOME        override the data dir entirely\n  XDG_DATA_HOME     data dir parent (systemd units use XDG_CONFIG_HOME)\n  NO_COLOR          disable color (CLICOLOR_FORCE enables it in pipes)\n  EVERY_SHELL       Windows only: the shell tasks run through\n  EVERY_POWERSHELL  Windows only: the PowerShell used for -Command tasks\n\ndata:  $EVERY_HOME\nmore:  https://github.com/serhiileniv/every\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--color=never"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--color",
+      "never"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--color=always"
+    ],
+    "exit": 0,
+    "stdout": "no tasks yet — try: every day 9am -- brew update\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "list",
+      "--color=bogus"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --color wants auto, always or never, got \"bogus\"\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "list",
+      "--color"
+    ],
+    "exit": 64,
+    "stdout": "",
+    "stderr": "every: --color needs a value\nsee: every help\n"
+  },
+  {
+    "argv": [
+      "version",
+      "--color=never"
+    ],
+    "exit": 0,
+    "stdout": "every $VERSION\nhumane task scheduler for macOS (launchd), Linux (systemd), and Windows (Task Scheduler)\nhttps://github.com/serhiileniv/every\n",
+    "stderr": ""
   }
 ]

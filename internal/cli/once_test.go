@@ -173,7 +173,10 @@ func TestOnceIsVisibleInListAndInspect(t *testing.T) {
 	if code := c.Run([]string{"list"}); code != 0 {
 		t.Fatalf("list: exit %d", code)
 	}
-	if !strings.Contains(out.String(), "03 Sep 09:00") {
+	// Pinned at 2 Sep 10:30, so the instant is 22h30m out and NEXT renders
+	// relative. The absolute instant is asserted above, against inspect's
+	// --json, which is where an exact time belongs.
+	if !strings.Contains(out.String(), "in 22h") {
 		t.Errorf("list before the moment:\n%s", out.String())
 	}
 

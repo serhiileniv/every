@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -20,6 +21,12 @@ const (
 	maxRunRecords = 500
 	runTrimBytes  = 256 * 1024
 	readChunk     = 16 * 1024
+
+	// detachGrace is how long capture keeps reading after the command itself
+	// has been reaped, for output a process it left behind is still flushing.
+	// Long enough for a line in flight, short enough that a task which starts a
+	// daemon finishes now instead of when the daemon does.
+	detachGrace = 1 * time.Second
 )
 
 // Runner executes tasks and records the result.
@@ -218,31 +225,66 @@ func (r *Runner) captureWithEnv(cmd, dir string, timeout time.Duration, extraEnv
 		defer timer.Stop()
 	}
 
+	// Wait runs alongside the read rather than after it.
+	//
+	// Reading to EOF means reading until the LAST holder of the write end lets
+	// go, and that is not necessarily our child: `server &`, an ssh that forks,
+	// anything that daemonizes, hands the pipe to a grandchild that outlives
+	// the command. The command exits in milliseconds and the read blocks for as
+	// long as the grandchild lives -- during which the scheduler will not start
+	// a second copy of the task, so the task is dead with `list` still saying
+	// ok. Waiting concurrently lets the reaping of our own child, rather than
+	// EOF, be what ends the capture.
+	//
+	// The timer above is still armed across both phases, so a command that
+	// closes stdout early but keeps running still has to die at the deadline.
+	waitDone := make(chan struct{})
+	var waitErr error
+	go func() {
+		err := c.Wait()
+		mu.Lock()
+		reaped = true
+		waitErr = err
+		mu.Unlock()
+		close(waitDone)
+		// Our child is gone; whatever still holds the pipe is not ours to wait
+		// on. The grace is for output already in flight.
+		_ = pr.SetReadDeadline(time.Now().Add(detachGrace))
+	}()
+
 	out := &bounded{}
 	buf := make([]byte, readChunk)
+	detached := false
 	for {
 		n, err := pr.Read(buf)
 		if n > 0 {
 			out.write(buf[:n])
 		}
 		if err != nil {
+			// The deadline only ever gets armed once the child is reaped, so
+			// this is the detached-grandchild case and not a slow command.
+			detached = errors.Is(err, os.ErrDeadlineExceeded)
 			break
 		}
 	}
 	pr.Close()
 
-	// The wait is inside the timeout, not just the read: a command that closes
-	// stdout early but keeps running still has to die at the deadline. The
-	// timer above is still armed here, which is what makes that true.
-	waitErr := c.Wait()
+	<-waitDone
 
 	mu.Lock()
-	reaped = true
 	killed := timedOut
 	mu.Unlock()
 
-	if killed {
+	switch {
+	case killed:
 		out.appendRaw(fmt.Sprintf("\n[every: killed after %ds timeout]\n", int(timeout.Seconds())))
+	case detached:
+		// Deliberately not killed: a task whose whole job is to start something
+		// that outlives it is a legitimate task. Said out loud because the
+		// output that follows is the grandchild's and every stopped reading it.
+		out.appendRaw(fmt.Sprintf(
+			"\n[every: command exited; something it started still holds the output pipe — stopped capturing after %s]\n",
+			detachGrace))
 	}
 
 	return Result{

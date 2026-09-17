@@ -2,26 +2,63 @@
 # zsh completion for every
 
 _every() {
-  local -a cmds
+  local -a cmds schedules
   cmds=(
     'list:status of everything'
+    'ls:status of everything (alias of list)'
     'log:output of recent runs'
     'run:run a task now'
     'pause:stop scheduling'
     'resume:start scheduling again'
     'rm:remove a task'
+    'remove:remove a task (alias of rm)'
     'doctor:why isn'\''t it running?'
+    'inspect:everything about one task'
+    'show:everything about one task (alias of inspect)'
+    'exists:exit 0 if the task exists, 66 if not'
+    'set:add a task, or update it in place'
+    'schema:the JSON shape a command emits'
     'version:show version'
     'help:show help'
   )
+  schedules=(
+    'hourly:every hour' 'day:daily at a time' 'weekdays:Mon-Fri' 'weekends:Sat+Sun'
+    'monday:weekly' 'tuesday:weekly' 'wednesday:weekly' 'thursday:weekly'
+    'friday:weekly' 'saturday:weekly' 'sunday:weekly'
+    'monthly:on days of the month' 'once:one time only, then removes itself'
+  )
+
+  if [[ ${words[CURRENT-1]} == --color ]]; then
+    _values 'when' auto always never
+    return
+  fi
 
   if (( CURRENT == 2 )); then
     _describe -t commands 'every command' cmds
+    _describe -t schedules 'schedule' schedules
+    return
+  fi
+
+  if [[ ${words[CURRENT]} == -* ]]; then
+    case ${words[2]} in
+      log)  _values 'flag' --json --with-output -n --color --help ;;
+      run)  _values 'flag' --json --dry-run --color --help ;;
+      set)  _values 'flag' --name --quiet --timeout --on-fail --json --color --help ;;
+      list|ls|pause|resume|rm|remove|doctor|inspect|show|exists|schema|version)
+            _values 'flag' --json --color --help ;;
+      *)    _values 'flag' --name --quiet --timeout --on-fail --json --color --help ;;
+    esac
+    return
+  fi
+
+  if [[ ${words[2]} == help ]] && (( CURRENT == 3 )); then
+    _describe -t topics 'help topic' cmds
+    _values 'topic' schedules
     return
   fi
 
   case ${words[2]} in
-    log|run|pause|resume|rm)
+    log|run|pause|resume|rm|remove|inspect|show|exists)
       if (( CURRENT == 3 )); then
         local -a names
         names=(${(f)"$(every list --json 2>/dev/null | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//')"})

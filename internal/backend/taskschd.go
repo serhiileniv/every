@@ -33,6 +33,11 @@ func NewTaskScheduler(cfg Config) *TaskScheduler {
 
 func (w *TaskScheduler) Name() string { return "Windows Task Scheduler" }
 
+// CatchesUpMissed: tasks carry StartWhenAvailable with no EndBoundary, so the
+// service runs a trigger it was powered off across rather than dropping it.
+// See triggerXML, where the absent EndBoundary is deliberate for exactly this.
+func (w *TaskScheduler) CatchesUpMissed() bool { return true }
+
 // taskPathPrefix groups every's tasks under one folder in the service.
 const taskPathPrefix = `\every\`
 

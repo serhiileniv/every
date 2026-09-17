@@ -48,6 +48,9 @@ func run() int {
 		Backend:  b,
 		Now:      time.Now,
 		Launcher: launcher,
+		Recolor: func(m ui.Mode) ui.Color {
+			return ui.NewColorMode(os.Stdout, ui.OSEnv, ui.OSHasEnv, m)
+		},
 	}
 	return c.Run(os.Args[1:])
 }

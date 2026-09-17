@@ -76,15 +76,15 @@ func (c *CLI) inspect(args []string) error {
 	}
 	if view.Last != nil {
 		fmt.Fprintf(c.Stdout, "  last run:  %s (exit %d in %ss)\n",
-			view.Last.At, view.Last.Exit, view.Last.Seconds)
+			c.humanStamp(view.Last.At, humanPast), view.Last.Exit, view.Last.Seconds)
 	} else {
 		fmt.Fprintf(c.Stdout, "  last run:  never\n")
 	}
 	if view.Next != nil {
-		fmt.Fprintf(c.Stdout, "  next run:  %s\n", *view.Next)
+		fmt.Fprintf(c.Stdout, "  next run:  %s\n", c.humanStamp(*view.Next, humanFuture))
 	}
 	fmt.Fprintf(c.Stdout, "  unit:      %s\n", view.UnitPath)
-	fmt.Fprintf(c.Stdout, "  created:   %s\n", view.CreatedAt)
+	fmt.Fprintf(c.Stdout, "  created:   %s\n", c.humanStamp(view.CreatedAt, humanPast))
 	return nil
 }
 
@@ -170,6 +170,10 @@ func (c *CLI) taskView(name string) (*TaskView, error) {
 		view.Last = &runView{At: last.At, Exit: last.Exit, Seconds: last.Dur}
 	}
 	view.Status = taskStatus(task.Paused, scheduled, lastExit)
+	// The same override list makes, so the two never disagree about a one-shot.
+	if overdue := c.onceStatus(name, sched); overdue != "" && !task.Paused {
+		view.Status = overdue
+	}
 
 	if scheduled {
 		if iso := c.nextISO(sched, last); iso != "" {
@@ -180,3 +184,20 @@ func (c *CLI) taskView(name string) (*TaskView, error) {
 }
 
 var _ = time.RFC3339
+
+// humanStamp renders an RFC 3339 field for a person: the absolute time, then
+// the relative one in parentheses.
+//
+// inspect is where the precise instant belongs -- `list` went relative because
+// its columns are scanned, this one is read. Both are shown because "14 Sep
+// 10:00" and "in 18h" answer different questions and inspect has room for both.
+//
+// An unparseable stamp is printed as stored. It came from the ledger, and
+// showing the raw value beats inventing a prettier lie about it.
+func (c *CLI) humanStamp(raw string, rel func(t, now time.Time) string) string {
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return raw
+	}
+	return fmt.Sprintf("%s (%s)", t.Format(absoluteFormat), rel(t, c.Now()))
+}

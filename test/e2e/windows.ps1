@@ -277,6 +277,53 @@ $r = Every @('rm', 'orphan')
 Same "rm of a task the service already dropped exits 0" 0 $r.Code
 Hasnt "orphan cleared from the store" (Every @('list')).Out "orphan"
 
+# ------------------------------------------------------------------ one-shots
+# Fired by Task Scheduler itself. Unit tests drive `run` directly, which is how
+# one-shots shipped never running on launchd: the scheduled run's start-up pass
+# unloaded -- and so killed -- the job. Same assertions here.
+Sec "6b. one-shots fired by the service"
+$marks = Join-Path $env:TEMP "every-e2e-marks"
+Remove-Item $marks -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $marks | Out-Null
+function WaitFor($seconds, [scriptblock]$cond) {
+  for ($i = 0; $i -lt $seconds; $i++) {
+    if (& $cond) { return $true }
+    Start-Sleep -Seconds 1
+  }
+  return $false
+}
+
+$r = Every @('once', '1m', '--name', 'onceprobe', '--', "type nul > `"$marks\once`"")
+Same "once add exits 0" 0 $r.Code
+$r = Every @('once', '1m', '--name', 'longprobe', '--',
+  "type nul > `"$marks\long-started`" & ping -n 21 127.0.0.1 > nul & type nul > `"$marks\long-done`"")
+Same "long once add exits 0" 0 $r.Code
+
+if (WaitFor 180 { Test-Path "$marks\once" }) { Ok "one-shot fired from the service" }
+else { Bad "one-shot fired" "no marker after 180s" }
+Has "one-shot run logged" (Every @('log', 'onceprobe')).Out "exit=0"
+
+if (WaitFor 60 { Test-Path "$marks\long-started" }) { Ok "long one-shot started" }
+else { Bad "long one-shot started" "no marker" }
+$sawRunning = $false
+for ($i = 0; $i -lt 5; $i++) {
+  if ((Every @('list')).Out -match 'longprobe\s.*\brunning\b') { $sawRunning = $true }
+  $null = Every @('doctor')
+  Start-Sleep -Seconds 1
+}
+Same "list shows the long one-shot as running" $true $sawRunning
+if (WaitFor 45 { Test-Path "$marks\long-done" }) { Ok "long one-shot survived list/doctor and finished" }
+else { Bad "long one-shot finished" "killed mid-run?" }
+
+foreach ($n in @('onceprobe', 'longprobe')) {
+  if (WaitFor 20 { -not ((Every @('list')).Out -match $n) }) { Ok "$n retired itself from the store" }
+  else { Bad "$n retired" "still listed" }
+  if (WaitFor 20 { -not ((EveryTaskNames) -contains $n) }) { Ok "$n unregistered from the service" }
+  else { Bad "$n unregistered" "still under \every\" }
+  $null = Every @('rm', $n)
+}
+Remove-Item $marks -Recurse -Force -ErrorAction SilentlyContinue
+
 # ----------------------------------------------------------------- PowerShell
 Sec "7. PowerShell command shell (EVERY_SHELL)"
 $psExe = (Get-Command powershell.exe -ErrorAction SilentlyContinue).Source

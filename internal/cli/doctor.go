@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/serhiileniv/every/internal/migrate"
 	"github.com/serhiileniv/every/internal/runner"
 	"github.com/serhiileniv/every/internal/schedule"
 	"github.com/serhiileniv/every/internal/store"
@@ -20,7 +21,13 @@ import (
 // failure carries the command that fixes it. A diagnostic that says what is
 // wrong without saying what to do is only half a diagnostic.
 func (c *CLI) doctor(args []string) error {
-	_, asJSON := stripJSONFlag(args)
+	rest, asJSON := stripJSONFlag(args)
+	if err := rejectUnknownFlags(rest); err != nil {
+		return err
+	}
+	if err := rejectExtraArgs(rest); err != nil {
+		return err
+	}
 	if asJSON {
 		return c.doctorJSON()
 	}
@@ -47,6 +54,8 @@ func (c *CLI) doctor(args []string) error {
 	check(fmt.Sprintf("data dir writable (%s)", c.Dirs.Data), writable,
 		fmt.Sprintf("fix permissions on %s", c.Dirs.Data))
 
+	c.doctorLauncher(check)
+
 	s, err := store.Load(c.Dirs.Data)
 	if err != nil {
 		return err
@@ -69,6 +78,19 @@ func (c *CLI) doctor(args []string) error {
 		task, _ := s.Tasks.Get(name)
 		fmt.Fprintf(c.Stdout, "\ntask: %s\n", name)
 
+		// A missed one-shot has no unit on purpose -- it was unscheduled so it
+		// could not fire on the same date a year later -- so the two checks
+		// below would report a deliberate state as two problems.
+		if at, missed := c.missedOneShot(name, task); missed {
+			note("one-shot missed: its moment (%s) went by without it firing", at)
+			note("  it was unscheduled so it cannot fire on that date next year — "+
+				"every rm %s to clear it", name)
+			c.doctorCommand(task.Cmd, check, note)
+			c.doctorCwd(task.Cwd, check, note)
+			c.doctorLastRun(s, name, check, note)
+			continue
+		}
+
 		check(fmt.Sprintf("scheduler resource exists (%s)", c.Backend.UnitPath(name)),
 			c.Backend.ResourceExists(name),
 			fmt.Sprintf("re-create the task: every rm %s && every <schedule> -- <cmd>", name))
@@ -81,7 +103,7 @@ func (c *CLI) doctor(args []string) error {
 		}
 
 		c.doctorCommand(task.Cmd, check, note)
-		c.doctorCwd(task.Cwd, note)
+		c.doctorCwd(task.Cwd, check, note)
 		c.doctorLastRun(s, name, check, note)
 	}
 
@@ -107,6 +129,58 @@ func isWritable(dir string) bool {
 	f.Close()
 	os.Remove(probe)
 	return true
+}
+
+// doctorLauncher checks that the binary the scheduler invokes still exists.
+//
+// Every unit holds an absolute path to every, and .runtime records which one
+// they were generated for. When that path goes -- an uninstalled prefix, a
+// deleted checkout, a `go run` that re-pointed them before the guard existed --
+// every task stops firing and nothing else in this report notices: the unit is
+// still on disk, the scheduler still has it loaded, and the last run is still
+// exit 0. Only its timestamp stops advancing.
+//
+// Silent when no migration pass has stamped yet: the units may name anything,
+// and inventing a claim about them would be worse than making none.
+func (c *CLI) doctorLauncher(check func(string, bool, string)) {
+	launcher, ok := migrate.RecordedLauncher(c.Dirs)
+	if !ok {
+		return
+	}
+	check(fmt.Sprintf("scheduled tasks invoke an existing binary (%s)", launcher),
+		launcherUsable(launcher),
+		"that path is gone — re-install every, then run any every command to re-point your tasks")
+}
+
+// missedOneShot reports whether a task is a one-shot whose moment went by on a
+// scheduler that will not run it late, and when that moment was.
+//
+// Such a task has had its unit removed deliberately -- see
+// migrate.disarmMissedOnce -- so the resource and loaded checks would report a
+// chosen state as two problems with a fix that re-creates something the user
+// probably no longer wants.
+func (c *CLI) missedOneShot(name string, task *store.Task) (string, bool) {
+	if task.Paused {
+		return "", false
+	}
+	sched, err := schedule.FromRecord(task.Schedule)
+	if err != nil {
+		return "", false
+	}
+	if c.onceStatus(name, sched) != "missed" {
+		return "", false
+	}
+	return sched.At.Format("2006-01-02 15:04"), true
+}
+
+// launcherUsable is a file that exists and can be executed. Windows decides
+// executability by extension rather than a mode bit, so there it is existence.
+func launcherUsable(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	return runtime.GOOS == "windows" || info.Mode().Perm()&0o111 != 0
 }
 
 var bareWordRe = regexp.MustCompile(`^[\w][\w.-]*$`)
@@ -284,10 +358,23 @@ func windowsCommandResolves(word string) bool {
 	return exec.Command("where.exe", word).Run() == nil
 }
 
-// doctorCwd warns about the macOS privacy folders, where a scheduler-spawned
-// process can see a directory and still be refused when it reads it.
-func (c *CLI) doctorCwd(cwd string, note func(string, ...any)) {
-	if runtime.GOOS != "darwin" || cwd == "" {
+// doctorCwd checks the directory the task runs in: that it is still there, and
+// on macOS that it is not one of the privacy folders, where a
+// scheduler-spawned process can see a directory and still be refused when it
+// reads it.
+func (c *CLI) doctorCwd(cwd string, check func(string, bool, string), note func(string, ...any)) {
+	if cwd == "" {
+		return
+	}
+	// A missing directory does not stop the run -- the runner falls back to
+	// $HOME and says so in the log -- which is exactly why it is worth a check
+	// here. A task written as `rm -rf build` means something different in the
+	// home directory.
+	info, err := os.Stat(cwd)
+	check(fmt.Sprintf("working directory exists (%s)", cwd), err == nil && info.IsDir(),
+		"it is gone, so runs fall back to your home directory — re-create the task from the directory it should run in")
+
+	if runtime.GOOS != "darwin" {
 		return
 	}
 	if !tccProtected(cwd) {
@@ -366,6 +453,8 @@ func (c *CLI) doctorJSON() error {
 	record(fmt.Sprintf("data dir writable (%s)", c.Dirs.Data), writable,
 		fmt.Sprintf("fix permissions on %s", c.Dirs.Data), "")
 
+	c.doctorLauncher(func(label string, ok bool, fix string) { record(label, ok, fix, "") })
+
 	s, err := store.Load(c.Dirs.Data)
 	if err != nil {
 		return err
@@ -382,13 +471,27 @@ func (c *CLI) doctorJSON() error {
 
 	for _, name := range s.Tasks.Names() {
 		task, _ := s.Tasks.Get(name)
-		record(fmt.Sprintf("scheduler resource exists (%s)", c.Backend.UnitPath(name)),
-			c.Backend.ResourceExists(name),
-			fmt.Sprintf("re-create the task: every rm %s && every <schedule> -- <cmd>", name), name)
 
-		if !task.Paused {
-			record(fmt.Sprintf("scheduled in %s", c.Backend.Name()), loaded[name],
-				fmt.Sprintf("load it: every resume %s", name), name)
+		// The same exemption the text form makes, so the two agree about
+		// whether this task is a problem. See missedOneShot.
+		_, missed := c.missedOneShot(name, task)
+		if !missed {
+			record(fmt.Sprintf("scheduler resource exists (%s)", c.Backend.UnitPath(name)),
+				c.Backend.ResourceExists(name),
+				fmt.Sprintf("re-create the task: every rm %s && every <schedule> -- <cmd>", name), name)
+
+			if !task.Paused {
+				record(fmt.Sprintf("scheduled in %s", c.Backend.Name()), loaded[name],
+					fmt.Sprintf("load it: every resume %s", name), name)
+			}
+		}
+
+		if task.Cwd != "" {
+			info, sErr := os.Stat(task.Cwd)
+			record(fmt.Sprintf("working directory exists (%s)", task.Cwd),
+				sErr == nil && info.IsDir(),
+				"it is gone, so runs fall back to your home directory — re-create the task from the directory it should run in",
+				name)
 		}
 
 		if last, lErr := s.LastRun(name); lErr == nil && last != nil {

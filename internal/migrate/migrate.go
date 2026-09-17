@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/serhiileniv/every/internal/backend"
@@ -41,9 +43,23 @@ type Result struct {
 	// Failed maps a task name to why it could not be repaired. A task that
 	// cannot be fixed must not stop the others from being fixed.
 	Failed map[string]error
+	// Relaunched is the launcher the units were re-pointed at, set only when
+	// the repair happened because the launcher moved rather than because the
+	// unit format changed. The two deserve different words.
+	Relaunched string
+	// SkippedLauncher is a launcher the pass refused to re-point at, and
+	// KeptLauncher the one the units go on using. See durableLauncher.
+	SkippedLauncher string
+	KeptLauncher    string
+	// Disarmed names the missed one-shots this pass unloaded. See
+	// disarmMissedOnce.
+	Disarmed []string
 }
 
-func (r Result) Any() bool { return len(r.Repaired) > 0 || len(r.Failed) > 0 }
+func (r Result) Any() bool {
+	return len(r.Repaired) > 0 || len(r.Failed) > 0 ||
+		r.SkippedLauncher != "" || len(r.Disarmed) > 0
+}
 
 // Run repairs any unit that does not match what this version would generate.
 //
@@ -51,14 +67,11 @@ func (r Result) Any() bool { return len(r.Repaired) > 0 || len(r.Failed) > 0 }
 // format, it regenerates each unit from the store and compares. That catches
 // the Ruby-argv case it was written for, and equally any future change to unit
 // contents, without needing to know what the old one looked like.
-func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
+// `now` is injected rather than read from the clock: whether a one-shot has
+// passed is a question about the caller's idea of the time, and the CLI's is
+// pinned in tests.
+func Run(dirs paths.Dirs, b backend.Backend, launcher, version string, now time.Time) Result {
 	res := Result{Failed: map[string]error{}}
-
-	stamp := filepath.Join(dirs.Data, stampName)
-	want := stampContent(dirs, version, launcher)
-	if current, err := os.ReadFile(stamp); err == nil && string(current) == want {
-		return res
-	}
 
 	s, err := store.Load(dirs.Data)
 	if err != nil {
@@ -67,6 +80,33 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 		return res
 	}
 
+	// Ahead of the stamp check, because this condition is made by the clock
+	// rather than by anything every wrote: a one-shot becomes missed while
+	// nothing on disk changes, so a stamp that still matches would hide it
+	// forever. The cost is the store read above on the settled path, where the
+	// stamp used to buy a single small file read -- and it is a read the
+	// commands that reach here are about to do anyway.
+	res.Disarmed = disarmMissedOnce(b, s, dirs.Data, now)
+
+	stamp := filepath.Join(dirs.Data, stampName)
+	want := stampContent(dirs, version, launcher)
+	if current, err := os.ReadFile(stamp); err == nil && string(current) == want {
+		return res
+	}
+
+	// Every unit this pass writes embeds `launcher`, so a pass run from the
+	// wrong binary re-points every task at it. Refuse when that would move the
+	// units to a launcher the shell cannot find -- see durableLauncher -- and
+	// return before the stamp is written, so the recorded launcher keeps
+	// naming the real install.
+	recorded, wasRecorded := RecordedLauncher(dirs)
+	moved := wasRecorded && recorded != launcher
+	if moved && !durableLauncher(launcher) {
+		res.SkippedLauncher, res.KeptLauncher = launcher, recorded
+		return res
+	}
+
+	deferred := false
 	for _, name := range s.Tasks.Names() {
 		task, _ := s.Tasks.Get(name)
 		if task.Paused {
@@ -80,7 +120,14 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 			res.Failed[name] = err
 			continue
 		}
-		repaired, err := repair(b, name, task)
+		// Re-registering unloads first, and launchd answers that by killing a
+		// running job -- after an upgrade, the first scheduled fire of each
+		// task would repair itself and die. Left for a later pass instead.
+		if store.Running(dirs.Data, name) {
+			deferred = true
+			continue
+		}
+		repaired, err := repair(b, name, task, now)
 		switch {
 		case err != nil:
 			res.Failed[name] = err
@@ -89,10 +136,14 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 		}
 	}
 
-	// Stamp only when nothing failed, so a partial repair is retried next time
-	// rather than being remembered as done. Recomputed rather than reusing
-	// `want`, because repairing may itself have touched the store.
-	if len(res.Failed) == 0 {
+	if moved && len(res.Repaired) > 0 {
+		res.Relaunched = launcher
+	}
+
+	// Stamp only when nothing failed or was deferred, so a partial repair is
+	// retried next time rather than being remembered as done. Recomputed rather
+	// than reusing `want`, because repairing may itself have touched the store.
+	if len(res.Failed) == 0 && !deferred {
 		_ = os.MkdirAll(dirs.Data, 0o755)
 		_ = os.WriteFile(stamp, []byte(stampContent(dirs, version, launcher)), 0o644)
 	}
@@ -102,14 +153,14 @@ func Run(dirs paths.Dirs, b backend.Backend, launcher, version string) Result {
 }
 
 // repair rewrites and re-registers one task if its unit is stale.
-func repair(b backend.Backend, name string, task *store.Task) (bool, error) {
+func repair(b backend.Backend, name string, task *store.Task, now time.Time) (bool, error) {
 	sched, err := schedule.FromRecord(task.Schedule)
 	if err != nil {
 		return false, err
 	}
 	// A once task whose moment has passed is either about to retire itself
 	// or was missed. Re-registering it would arm launchd for next year.
-	if sched.Kind == schedule.Once && !sched.At.After(time.Now()) {
+	if sched.Kind == schedule.Once && !sched.At.After(now) {
 		return false, nil
 	}
 
@@ -147,6 +198,61 @@ func repair(b backend.Backend, name string, task *store.Task) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// disarmMissedOnce unloads one-shots whose moment has passed on a scheduler
+// that will not run them, and returns the names it unloaded.
+//
+// launchd's plist carries Month, Day, Hour and Minute -- there is no Year
+// field -- so a trigger the machine was powered off across still matches the
+// same date twelve months later. The task would then fire a year late, run its
+// command, and retire itself, with nothing anywhere saying that a one-shot
+// scheduled for last December had just gone off.
+//
+// The store entry is deliberately left alone: `list` goes on reporting the
+// task as missed, which is the signal the user needs, and `every rm` is still
+// how it goes away. Only the trigger is removed.
+//
+// Not done on systemd or Task Scheduler. Persistent=true and
+// StartWhenAvailable mean those schedulers intend to run a missed one-shot
+// late, and that is the behavior their backends were deliberately written for.
+//
+// Gated on the unit file still existing, so once a task is disarmed every later
+// pass costs one stat rather than a launchctl subprocess -- and a missed
+// one-shot can sit in the store for a long time before anyone removes it.
+//
+// Never a task that is running, or still inside schedule.OnceGrace. The
+// scheduled `every run` of a one-shot starts with this very pass, and unloading
+// a launchd job kills it: without both guards a one-shot is killed by its own
+// firing, or by an `every list` typed before launchd got round to spawning it.
+func disarmMissedOnce(b backend.Backend, s *store.Store, dataDir string, now time.Time) []string {
+	if backend.CatchesUpMissed(b) {
+		return nil
+	}
+
+	var disarmed []string
+	for _, name := range s.Tasks.Names() {
+		task, _ := s.Tasks.Get(name)
+		if task.Paused || naming.Validate(name) != nil {
+			continue
+		}
+		sched, err := schedule.FromRecord(task.Schedule)
+		if err != nil || !sched.OnceOverdue(now) {
+			continue
+		}
+		if !b.ResourceExists(name) || store.Running(dataDir, name) {
+			continue
+		}
+		// Disable first: DeleteUnits is what makes this idempotent, and doing
+		// it the other way round would leave a loaded job with no file behind
+		// it if the process died in between.
+		_ = b.Disable(name)
+		if err := b.DeleteUnits(name); err != nil {
+			continue
+		}
+		disarmed = append(disarmed, name)
+	}
+	return disarmed
 }
 
 // currentUnit reads what is on disk, or "" when there is nothing to compare.
@@ -230,12 +336,78 @@ func stampContent(dirs paths.Dirs, version, launcher string) string {
 	return version + "\n" + launcher + "\n" + storeStamp + "\n"
 }
 
+// RecordedLauncher is the launcher the units were last generated for, read
+// back from the stamp. Reports false when no pass has run yet, which is the
+// only honest answer -- the units may name anything.
+//
+// Exported because doctor checks that this path still exists: a launcher that
+// has gone is a task that silently never fires, and every other check in that
+// report still passes.
+func RecordedLauncher(dirs paths.Dirs) (string, bool) {
+	raw, err := os.ReadFile(filepath.Join(dirs.Data, stampName))
+	if err != nil {
+		return "", false
+	}
+	// stampContent's second line. Split rather than a scanner: three lines.
+	lines := strings.Split(string(raw), "\n")
+	if len(lines) < 2 || lines[1] == "" {
+		return "", false
+	}
+	return lines[1], true
+}
+
+// durableLauncher reports whether a launcher is one worth writing into every
+// unit on the machine.
+//
+// The rule is that the shell can find it: LookPath on its base name resolves
+// to this same file. That admits every install the installer and Homebrew
+// produce -- including through the symlink, which Stat follows for both sides
+// -- and excludes the two paths that are gone a moment later: `go run`'s temp
+// build directory, and a binary invoked as ./every from a checkout.
+//
+// Getting this wrong in the permissive direction is expensive and silent. A
+// pass run from a throwaway binary re-points every task at a path that stops
+// existing, the units stay present and loaded, the last run stays exit 0, and
+// the first sign is a backup that has not run for a month. Refusing to move
+// the units costs at most an automatic re-point the user can trigger by
+// running any every command from the real install.
+func durableLauncher(launcher string) bool {
+	found, err := exec.LookPath(filepath.Base(launcher))
+	if err != nil {
+		return false
+	}
+	onPath, err := os.Stat(found)
+	if err != nil {
+		return false
+	}
+	invoked, err := os.Stat(launcher)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(onPath, invoked)
+}
+
 // Report writes a one-line summary, and nothing at all when there was nothing
 // to do. A migration that announces itself on every invocation is noise.
 func Report(w io.Writer, res Result) {
+	if res.SkippedLauncher != "" {
+		fmt.Fprintf(w, "· not re-pointing tasks at %s (not on PATH — a dev build or a temp binary)\n",
+			res.SkippedLauncher)
+		fmt.Fprintf(w, "  scheduled tasks still run %s\n", res.KeptLauncher)
+	}
+	for _, name := range res.Disarmed {
+		fmt.Fprintf(w, "· %s was a one-shot the machine was off across — unscheduled it, "+
+			"so it cannot fire on the same date next year\n", name)
+		fmt.Fprintf(w, "  → every rm %s to clear it (the log is kept either way)\n", name)
+	}
 	if n := len(res.Repaired); n > 0 {
-		fmt.Fprintf(w, "· repaired %d scheduled task%s for the %s runtime\n",
-			n, plural(n), shortVersion)
+		if res.Relaunched != "" {
+			fmt.Fprintf(w, "· re-pointed %d scheduled task%s at %s\n",
+				n, plural(n), res.Relaunched)
+		} else {
+			fmt.Fprintf(w, "· repaired %d scheduled task%s for the %s runtime\n",
+				n, plural(n), shortVersion)
+		}
 	}
 	for name, err := range res.Failed {
 		fmt.Fprintf(w, "· could not repair %s: %v\n", name, err)
